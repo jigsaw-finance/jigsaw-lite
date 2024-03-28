@@ -103,7 +103,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @param _address The address to be checked for validity.
      */
     modifier validAddress(address _address) {
-        if (_address != address(0)) revert InvalidAddress();
+        if (_address == address(0)) revert InvalidAddress();
         _;
     }
 
