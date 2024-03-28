@@ -11,7 +11,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
- * @title Staking and reward distribution contract based on synthetix
+ * @title Staker
+ * @notice Staker is a contract responsible for distributing rewards
+ *  in the form of jPoints to early users of the Jigsaw protocol.
+ * @notice This contract accepts wstETH tokens as `tokenIn` and distributes rewards accordingly.
+ * @notice It is not intended for direct use; interaction should be done through the `stakingManager` contract.
+ *
+ * @dev This contract inherits functionalities from `Ownable2Step`, `Pausable`, and `ReentrancyGuard`.
+ *
  * @author Hovooo (@hovooo)
  */
 contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
@@ -25,7 +32,12 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     /**
      * @notice Address of the reward token.
      */
-    address public immutable override rewardToken;
+    address public immutable rewardToken;
+
+    /**
+     * @notice Address of the staking manager.
+     */
+    address public immutable override stakingManager;
 
     /**
      * @notice Timestamp indicating when the current reward distribution ends.
@@ -104,6 +116,11 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         _;
     }
 
+    modifier onlyStakingManager() {
+        if (msg.sender != stakingManager) revert UnauthorizedCaller();
+        _;
+    }
+
     /**
      * @notice Constructor function for initializing the Staker contract.
      * @param _initialOwner Address of the initial owner.
@@ -113,14 +130,17 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     constructor(
         address _initialOwner,
         address _tokenIn,
-        address _rewardToken
+        address _rewardToken,
+        address _stakingManager
     )
-        Ownable(_initialOwner)
+        validAddress(_initialOwner)
         validAddress(_tokenIn)
         validAddress(_rewardToken)
+        Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
         rewardToken = _rewardToken;
+        stakingManager = _stakingManager;
         periodFinish = block.timestamp + 365 days;
     }
 
@@ -162,10 +182,6 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
      */
     function pause() external onlyOwner whenNotPaused {
         _pause();
@@ -173,10 +189,6 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
      */
     function unpause() external onlyOwner whenPaused {
         _unpause();
@@ -237,16 +249,22 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     // -- Staker's operations  --
 
     /**
-     * @notice Performs a deposit operation for msg.sender.
+     * @notice Performs a deposit operation for `_user`.
      * @dev Updates participants' rewards.
-     * @param _amount The deposited amount.
+     *
+     * @param _user to deposit for.
+     * @param _amount to deposit.
      */
-    function deposit(uint256 _amount)
+    function deposit(
+        address _user,
+        uint256 _amount
+    )
         external
         override
+        onlyStakingManager
         whenNotPaused
         nonReentrant
-        updateReward(msg.sender)
+        updateReward(_user)
         validAmount(_amount)
     {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
@@ -255,51 +273,62 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         _totalSupply += _amount;
         if (_totalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
 
-        _balances[msg.sender] += _amount;
-        emit Staked(msg.sender, _amount);
+        _balances[_user] += _amount;
+        emit Staked(_user, _amount);
     }
 
     /**
      * @notice Withdraws investment from staking.
      * @dev Updates participants' rewards.
-     * @param _amount The amount to withdraw.
+     *
+     * @param _user to withdraw for.
+     * @param _amount to withdraw.
      */
-    function withdraw(uint256 _amount)
+    function withdraw(
+        address _user,
+        uint256 _amount
+    )
         public
         override
+        onlyStakingManager
         whenNotPaused
         nonReentrant
-        updateReward(msg.sender)
+        updateReward(_user)
         validAmount(_amount)
     {
         _totalSupply -= _amount;
-        _balances[msg.sender] = _balances[msg.sender] - _amount;
-        emit Withdrawn(msg.sender, _amount);
+        _balances[_user] = _balances[_user] - _amount;
+        emit Withdrawn(_user, _amount);
     }
 
     /**
      * @notice Claims the rewards for the caller.
      * @dev This function allows the caller to claim their earned rewards.
+     *
+     *  @param _user to claim rewards for.
      */
-    function claimRewards() public override nonReentrant updateReward(msg.sender) {
-        uint256 reward = rewards[msg.sender];
+    function claimRewards(address _user) public override onlyStakingManager nonReentrant updateReward(_user) {
+        uint256 reward = rewards[_user];
         if (reward == 0) revert NothingToClaim();
 
-        rewards[msg.sender] = 0;
-        emit RewardPaid(msg.sender, reward);
-        IERC20(rewardToken).safeTransfer(msg.sender, reward);
+        rewards[_user] = 0;
+        emit RewardPaid(_user, reward);
+        IERC20(rewardToken).safeTransfer(_user, reward);
     }
 
     /**
-     * @notice Withdraws the entire investment and claims rewards for the caller.
+     * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
      * @dev This function enables the caller to exit the investment and claim their rewards.
+     *
+     *  @param _user to withdraw and claim for.
+     *  @param _amount to withdraw.
      */
-    function exit() external override {
-        withdraw(_balances[msg.sender]);
+    function exit(address _user, uint256 _amount) external override onlyStakingManager {
+        withdraw(_user, _amount);
 
-        uint256 reward = rewards[msg.sender];
+        uint256 reward = rewards[_user];
         if (reward > 0) {
-            claimRewards();
+            claimRewards(_user);
         }
     }
 
