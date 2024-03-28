@@ -3,8 +3,60 @@ pragma solidity ^0.8.0;
 
 /// @title Interface for Staker contract
 interface IStaker {
-    /// @notice event emitted when pause state is modified
-    event PauseUpdated(bool oldVal, bool newVal);
+    // --- Errors ---
+    /**
+     * @dev The operation failed because provided address is invalid.
+     */
+    error InvalidAddress();
+
+    /**
+     * @dev The operation failed because provided amount is invalid.
+     */
+    error InvalidAmount();
+
+    /**
+     * @dev The operation failed because previous rewards period must end first.
+     */
+    error PreviousPeriodNotFinished(uint256 timestamp, uint256 periodFinish);
+
+    /**
+     * @dev The operation failed because rewards duration is zero.
+     */
+    error ZeroRewardsDuration();
+
+    /**
+     * @dev The operation failed because reward rate was zero.
+     * Caused by an insufficient amount of rewards provided.
+     */
+    error RewardAmountTooSmall();
+
+    /**
+     * @dev The operation failed because reward rate is too big.
+     */
+    error RewardRateTooBig();
+
+    /**
+     * @dev The operation failed because there were no rewards to distribute.
+     */
+    error NoRewardsToDistribute();
+
+    /**
+     * @dev The operation failed because deposit surpasses the supply limit.
+     * @param _amount of tokens attempting to be deposited.
+     * @param supplyLimit allowed for deposits.
+     */
+    error DepositSurpassesSupplyLimit(uint256 _amount, uint256 supplyLimit);
+
+    /**
+     * @dev The operation failed because user doesn't have rewards to claim.
+     */
+    error NothingToClaim();
+
+    /**
+     * @dev The operation failed because renouncing ownership is prohibited.
+     */
+    error RenouncingOwnershipProhibited();
+
     /// @notice event emitted when tokens, other than the staking one, are saved from the contract
     event SavedFunds(address indexed token, uint256 amount);
     /// @notice event emitted when rewards duration was updated
@@ -39,18 +91,29 @@ interface IStaker {
     /// @notice reward-token share
     function rewardPerTokenStored() external view returns (uint256);
 
-    /// @notice returns the pause state of the contract
-    function paused() external view returns (bool);
-
     /// @notice rewards paid to participants so far
     function userRewardPerTokenPaid(address participant) external view returns (uint256);
 
     /// @notice accrued rewards per participant
     function rewards(address participant) external view returns (uint256);
 
-    /// @notice sets a new value for pause state
-    /// @param _val the new value
-    function setPaused(bool _val) external;
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external;
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external;
 
     /// @notice sets the new rewards duration
     /// @param _rewardsDuration amount

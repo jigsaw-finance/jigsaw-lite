@@ -9,19 +9,28 @@ pragma solidity ^0.8.0;
 interface IStakerManager {
     // --- Errors ---
     /**
-     * @dev The operation failed because renouncing ownership is prohibited.
+     * @dev The operation failed because renouncing default admin role is prohibited.
      */
-    error RenouncingOwnershipIsProhibited();
+    error RenouncingDefaultAdminRoleProhibited();
     /**
      * @dev The operation failed because amount is zero;
      */
     error InvalidAmount();
+    /**
+     * @dev The operation failed because unstaking is not possible before lockup period ends;
+     */
+    error PreLockupPeriodUnstaking();
 
     // --- Events ---
     /**
-     * @dev emitted when participant deposited
+     * @dev emitted when participant staked
      */
     event Staked(address indexed user, uint256 indexed amount);
+
+    /**
+     * @dev emitted when participant unstaked
+     */
+    event Unstaked(address indexed to, uint256 indexed amount);
 
     /**
      * @dev emitted when a new holding is created
@@ -54,4 +63,24 @@ interface IStakerManager {
      * @param _amount The amount of staked assets to withdraw.
      */
     function unstake(address _to, uint256 _amount) external;
+
+    function beginDefaultAdminTransfer(address newAdmin) external;
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external;
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external;
 }
