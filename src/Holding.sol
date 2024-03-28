@@ -29,7 +29,7 @@ contract Holding is IHolding, ReentrancyGuard {
     // --- Modifiers ---
 
     modifier onlyStakingManager() {
-        if (msg.sender == stakingManager) revert UnauthorizedCaller();
+        if (msg.sender != stakingManager) revert UnauthorizedCaller();
         _;
     }
 
