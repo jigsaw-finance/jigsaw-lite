@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
 
 import { StakingManager } from "../../src/StakingManager.sol";
+import { jPoints } from "../../src/jPoints.sol";
 
 import { IIonPool } from "../utils/IIonPool.sol";
 import { IWhitelist } from "../utils/IWhitelist.sol";
@@ -15,26 +16,27 @@ contract IntegrationPoC is Test {
     string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
-    address constant underlyingAsset = address(uint160(uint256(keccak256(bytes("underlyingAsset")))));
-    address constant rewardToken = address(uint160(uint256(keccak256(bytes("rewardToken")))));
+    address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+    jPoints rewardToken;
 
     StakingManager internal stakingManager;
 
     function setUp() public {
         vm.createSelectFork(MAINNET_RPC_URL);
 
-        stakingManager = new StakingManager(
-            ADMIN,
-            underlyingAsset,
-            rewardToken,
-            address(ION_POOL)
-        );
-    }
+        rewardToken = new jPoints( {_initialOwner: ADMIN,_limit: 1e6} );
 
-    function test_RemoveConstraints() public {
-        IWhitelist whitelist = IWhitelist(ION_POOL.whitelist());
+        stakingManager = new StakingManager({            
+            _admin: ADMIN,
+            _underlyingAsset: wstETH,
+            _rewardToken: address(rewardToken),
+           _ionPool: address(ION_POOL)}
+        );
 
         vm.startPrank(ION_POOL.owner());
-        whitelist.approveProtocolWhitelist(address(stakingManager));
+        IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
+        vm.stopPrank();
     }
+
+    function test_stake_when_authorized() public { }
 }
