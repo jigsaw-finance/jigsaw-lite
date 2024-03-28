@@ -3,61 +3,113 @@ pragma solidity ^0.8.0;
 
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { IStaker } from "./interfaces/IStaker.sol";
 
-/// @title Staking and reward distribution contract based on synthetix
-/// @author Hovooo (@hovooo)
-contract Staker is IStaker, Ownable2Step, ReentrancyGuard {
+/**
+ * @title Staking and reward distribution contract based on synthetix
+ * @author Hovooo (@hovooo)
+ */
+contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// @notice returns staking token
+    /**
+     * @notice Address of the staking token.
+     */
     address public immutable override tokenIn;
 
-    // @note should it be reward tokenS?
-    /// @notice returns reward token
+    /**
+     * @notice Address of the reward token.
+     */
     address public immutable override rewardToken;
 
-    /// @notice when current reward distribution ends
+    /**
+     * @notice Timestamp indicating when the current reward distribution ends.
+     */
     uint256 public override periodFinish = 0;
 
-    /// @notice rewards per second
+    /**
+     * @notice Rate of rewards per second.
+     */
     uint256 public override rewardRate = 0;
 
-    /// @notice reward period
+    /**
+     * @notice Duration of current reward period.
+     */
     uint256 public override rewardsDuration;
 
-    /// @notice last reward update timestamp
+    /**
+     * @notice Timestamp of the last update time.
+     */
     uint256 public override lastUpdateTime;
 
-    // @note should it be JIG reward per token?
-    // @note what to do with rewards from ION? How can we get it?
-    /// @notice reward-token share
+    /**
+     * @notice Stored rewards per token.
+     */
     uint256 public override rewardPerTokenStored;
 
-    // @note should it be JIG rewards paid?
-    /// @notice rewards paid to participants so far
+    /**
+     * @notice Mapping of user addresses to the amount of rewards already paid to them.
+     */
     mapping(address => uint256) public override userRewardPerTokenPaid;
 
-    // @note should it be JIG rewards?
-    /// @notice accrued rewards per participant
+    /**
+     * @notice Mapping of user addresses to their accrued rewards.
+     */
     mapping(address => uint256) public override rewards;
 
-    /// @notice returns the pause state of the contract
-    bool public override paused;
-
-    // @note do we need to limit it more?
+    /**
+     * @notice Total supply limit of the staking token.
+     */
     uint256 public totalSupplyLimit = 1e34;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
 
-    /// @notice creates a new Staker contract
-    /// @param _tokenIn staking token address
-    /// @param _rewardToken reward token address
+    // --- Modifiers ---
+
+    /**
+     * @dev Modifier to update the reward for a specified account.
+     * @param account The account for which the reward needs to be updated.
+     */
+    modifier updateReward(address account) {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = lastTimeRewardApplicable();
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+        _;
+    }
+
+    /**
+     * @dev Modifier to check if the provided address is valid.
+     * @param _address The address to be checked for validity.
+     */
+    modifier validAddress(address _address) {
+        if (_address != address(0)) revert InvalidAddress();
+        _;
+    }
+
+    /**
+     * @dev Modifier to check if the provided amount is valid.
+     * @param _amount The amount to be checked for validity.
+     */
+    modifier validAmount(uint256 _amount) {
+        if (_amount == 0) revert InvalidAmount();
+        _;
+    }
+
+    /**
+     * @notice Constructor function for initializing the Staker contract.
+     * @param _initialOwner Address of the initial owner.
+     * @param _tokenIn Address of the staking token.
+     * @param _rewardToken Address of the reward token.
+     */
     constructor(
         address _initialOwner,
         address _tokenIn,
@@ -72,27 +124,24 @@ contract Staker is IStaker, Ownable2Step, ReentrancyGuard {
         periodFinish = block.timestamp + 365 days;
     }
 
-    // -- Owner specific methods --
+    // -- Administration --
 
-    /// @notice sets a new value for pause state
-    /// @param _val the new value
-    function setPaused(bool _val) external onlyOwner {
-        emit PauseUpdated(paused, _val);
-        paused = _val;
-    }
-
-    /// @notice sets the new rewards duration
-    /// @param _rewardsDuration amount
+    /**
+     * @notice Sets the duration of each reward period.
+     * @param _rewardsDuration The new rewards duration.
+     */
     function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
-        require(block.timestamp > periodFinish, "3087");
+        if (block.timestamp <= periodFinish) revert PreviousPeriodNotFinished(block.timestamp, periodFinish);
         rewardsDuration = _rewardsDuration;
         emit RewardsDurationUpdated(rewardsDuration);
     }
 
-    /// @notice adds more rewards to the contract
-    /// @param _amount new rewards amount
+    /**
+     * @notice Adds more rewards to the contract.
+     * @param _amount The amount of new rewards.
+     */
     function addRewards(uint256 _amount) external onlyOwner validAmount(_amount) updateReward(address(0)) {
-        require(rewardsDuration > 0, "3089");
+        if (rewardsDuration == 0) revert ZeroRewardsDuration();
         if (block.timestamp >= periodFinish) {
             rewardRate = _amount / rewardsDuration;
         } else {
@@ -101,36 +150,65 @@ contract Staker is IStaker, Ownable2Step, ReentrancyGuard {
             rewardRate = (_amount + leftover) / rewardsDuration;
         }
 
-        // prevent setting rewardRate to 0 because of precision loss
-        require(rewardRate != 0, "3088");
+        if (rewardRate == 0) revert RewardAmountTooSmall();
 
-        // prevent overflows
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
-        require(rewardRate <= (balance / rewardsDuration), "2003");
+        if (rewardRate > (balance / rewardsDuration)) revert RewardRateTooBig();
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + rewardsDuration;
         emit RewardAdded(_amount);
     }
 
-    // -- View type methods --
-    /// @notice returns the total tokenIn supply
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external onlyOwner whenNotPaused {
+        _pause();
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external onlyOwner whenPaused {
+        _unpause();
+    }
+
+    // -- Getters --
+
+    /**
+     * @notice Returns the total supply of the staking token.
+     */
     function totalSupply() external view override returns (uint256) {
         return _totalSupply;
     }
 
-    /// @notice returns total invested amount for an account
-    /// @param _account participant address
+    /**
+     * @notice Returns the total invested amount for an account.
+     * @param _account The participant's address.
+     */
     function balanceOf(address _account) external view override returns (uint256) {
         return _balances[_account];
     }
 
-    /// @notice returns the last time rewards were applicable
+    /**
+     * @notice Returns the last time rewards were applicable.
+     */
     function lastTimeRewardApplicable() public view override returns (uint256) {
         return block.timestamp < periodFinish ? block.timestamp : periodFinish;
     }
 
-    /// @notice returns rewards per tokenIn
+    /**
+     * @notice Returns rewards per token.
+     */
     function rewardPerToken() public view override returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
@@ -140,56 +218,75 @@ contract Staker is IStaker, Ownable2Step, ReentrancyGuard {
             rewardPerTokenStored + (((lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * 1e18) / _totalSupply);
     }
 
-    /// @notice rewards accrued rewards for account
-    /// @param _account participant's address
+    /**
+     * @notice Returns accrued rewards for an account.
+     * @param _account The participant's address.
+     */
     function earned(address _account) public view override returns (uint256) {
         return
             ((_balances[_account] * (rewardPerToken() - userRewardPerTokenPaid[_account])) / 1e18) + rewards[_account];
     }
 
-    /// @notice returns reward amount for a specific time range
+    /**
+     * @notice Returns the reward amount for a specific time range.
+     */
     function getRewardForDuration() external view override returns (uint256) {
         return rewardRate * rewardsDuration;
     }
 
-    // -- User write type methods --
+    // -- Staker's operations  --
 
-    /// @notice performs a deposit operation for msg.sender
-    /// @dev updates participants rewards
-    /// @param _amount deposited amount
-    function deposit(uint256 _amount) external override nonReentrant updateReward(msg.sender) validAmount(_amount) {
-        require(!paused, "1200");
-
+    /**
+     * @notice Performs a deposit operation for msg.sender.
+     * @dev Updates participants' rewards.
+     * @param _amount The deposited amount.
+     */
+    function deposit(uint256 _amount)
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        updateReward(msg.sender)
+        validAmount(_amount)
+    {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
-        require(rewardBalance > 0, "3090");
+        if (rewardBalance == 0) revert NoRewardsToDistribute();
 
         _totalSupply += _amount;
-        require(_totalSupply <= totalSupplyLimit, "3091");
+        if (_totalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
+
         _balances[msg.sender] += _amount;
         emit Staked(msg.sender, _amount);
     }
 
-    /// @notice claims investment from strategy
-    /// @dev updates participants rewards
-    /// @param _amount amount to withdraw
+    /**
+     * @notice Withdraws investment from staking.
+     * @dev Updates participants' rewards.
+     * @param _amount The amount to withdraw.
+     */
     function withdraw(uint256 _amount) public override nonReentrant updateReward(msg.sender) validAmount(_amount) {
         _totalSupply -= _amount;
         _balances[msg.sender] = _balances[msg.sender] - _amount;
         emit Withdrawn(msg.sender, _amount);
-        IERC20(tokenIn).safeTransfer(msg.sender, _amount);
     }
 
-    /// @notice claims the rewards for msg.sender
+    /**
+     * @notice Claims the rewards for the caller.
+     * @dev This function allows the caller to claim their earned rewards.
+     */
     function claimRewards() public override nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
-        require(reward > 0, "3092");
+        if (reward == 0) revert NothingToClaim();
 
         rewards[msg.sender] = 0;
         emit RewardPaid(msg.sender, reward);
         IERC20(rewardToken).safeTransfer(msg.sender, reward);
     }
 
-    /// @notice withdraws the entire investment and claims rewards for msg.sender
+    /**
+     * @notice Withdraws the entire investment and claims rewards for the caller.
+     * @dev This function enables the caller to exit the investment and claim their rewards.
+     */
     function exit() external override {
         withdraw(_balances[msg.sender]);
 
@@ -199,29 +296,11 @@ contract Staker is IStaker, Ownable2Step, ReentrancyGuard {
         }
     }
 
-    // @dev renounce ownership override to avoid losing contract's ownership
+    /**
+     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
+     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
+     */
     function renounceOwnership() public pure override {
-        revert("1000");
-    }
-
-    // -- Modifiers --
-    modifier updateReward(address account) {
-        rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = lastTimeRewardApplicable();
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
-        _;
-    }
-
-    modifier validAddress(address _address) {
-        require(_address != address(0), "3000");
-        _;
-    }
-
-    modifier validAmount(uint256 _amount) {
-        require(_amount > 0, "2001");
-        _;
+        revert RenouncingOwnershipProhibited();
     }
 }
