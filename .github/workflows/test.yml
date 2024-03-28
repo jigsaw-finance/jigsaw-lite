@@ -1,6 +1,8 @@
 name: test
 
-on: workflow_dispatch
+on:
+  pull_request:
+  workflow_dispatch:
 
 env:
   FOUNDRY_PROFILE: ci
@@ -30,5 +32,5 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test --fuzz-runs 100 -vvv
         id: test
