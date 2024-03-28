@@ -73,7 +73,8 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         address _admin,
         address _underlyingAsset,
         address _rewardToken,
-        address _ionPool
+        address _ionPool,
+        uint256 _rewardsDuration
     )
         AccessControlDefaultAdminRules(
             2 days,
@@ -87,7 +88,8 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
             _initialOwner:  _admin,
             _tokenIn: _underlyingAsset,
             _rewardToken: _rewardToken,
-            _stakingManager: address(this)
+            _stakingManager: address(this),
+            _rewardsDuration: _rewardsDuration
             })
         );
         holdingImplementationReference = address(new Holding());
