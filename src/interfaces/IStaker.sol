@@ -57,44 +57,77 @@ interface IStaker {
      */
     error RenouncingOwnershipProhibited();
 
-    /// @notice event emitted when tokens, other than the staking one, are saved from the contract
+    // --- Events ---
+
+    /**
+     * @notice event emitted when tokens, other than the staking one, are saved from the contract.
+     */
     event SavedFunds(address indexed token, uint256 amount);
-    /// @notice event emitted when rewards duration was updated
+
+    /**
+     * @notice event emitted when rewards duration was updated.
+     */
     event RewardsDurationUpdated(uint256 newDuration);
-    /// @notice event emitted when rewards were added
+    /**
+     * @notice event emitted when rewards were added.
+     */
     event RewardAdded(uint256 reward);
-    /// @notice event emitted when participant deposited
+    /**
+     * @notice event emitted when participant deposited.
+     */
     event Staked(address indexed user, uint256 amount);
-    /// @notice event emitted when participant claimed the investment
+    /**
+     * @notice event emitted when participant claimed the investment.
+     */
     event Withdrawn(address indexed user, uint256 amount);
-    /// @notice event emitted when participant claimed rewards
+    /**
+     * @notice event emitted when participant claimed rewards.
+     */
     event RewardPaid(address indexed user, uint256 reward);
 
-    /// @notice returns staking token
+    /**
+     * @notice returns staking token.
+     */
     function tokenIn() external view returns (address);
 
-    /// @notice returns reward token
+    /**
+     * @notice returns reward token.
+     */
     function rewardToken() external view returns (address);
 
-    /// @notice when current contract distribution ends (block timestamp + rewards duration)
+    /**
+     * @notice when current contract distribution ends (block timestamp + rewards duration).
+     */
     function periodFinish() external view returns (uint256);
 
-    /// @notice rewards per second
+    /**
+     * @notice rewards per second.
+     */
     function rewardRate() external view returns (uint256);
 
-    /// @notice reward period
+    /**
+     * @notice reward period.
+     */
     function rewardsDuration() external view returns (uint256);
 
-    /// @notice last reward update timestamp
+    /**
+     * @notice last reward update timestamp.
+     */
     function lastUpdateTime() external view returns (uint256);
 
-    /// @notice reward-token share
+    /**
+     * @notice reward-token share.
+     */
     function rewardPerTokenStored() external view returns (uint256);
 
-    /// @notice rewards paid to participants so far
+    /**
+     * @notice rewards paid to participants so far.
+     */
     function userRewardPerTokenPaid(address participant) external view returns (uint256);
 
-    /// @notice accrued rewards per participant
+    /**
+     * @notice accrued rewards per participant.
+     */
     function rewards(address participant) external view returns (uint256);
 
     /**
@@ -115,47 +148,69 @@ interface IStaker {
      */
     function unpause() external;
 
-    /// @notice sets the new rewards duration
-    /// @param _rewardsDuration amount
+    /**
+     * @notice sets the new rewards duration.
+     */
     function setRewardsDuration(uint256 _rewardsDuration) external;
 
-    /// @notice adds more rewards to the contract
-    /// @param _amount new rewards amount
+    /**
+     * @notice adds more rewards to the contract.
+     */
     function addRewards(uint256 _amount) external;
 
-    /// @notice returns the total tokenIn supply
+    /**
+     * @notice returns the total tokenIn supply.
+     */
     function totalSupply() external view returns (uint256);
 
-    /// @notice returns total invested amount for an account
-    /// @param _account participant address
+    /**
+     * @notice returns total invested amount for an account.
+     *  @param _account participant address
+     */
     function balanceOf(address _account) external view returns (uint256);
 
-    /// @notice returns the last time rewards were applicable
+    /**
+     * @notice returns the last time rewards were applicable.
+     */
     function lastTimeRewardApplicable() external view returns (uint256);
 
-    /// @notice returns rewards per tokenIn
+    /**
+     * @notice returns rewards per tokenIn.
+     */
     function rewardPerToken() external view returns (uint256);
 
-    /// @notice rewards accrued rewards for account
-    /// @param _account participant's address
+    /**
+     * @notice rewards accrued rewards for account.
+     *  @param _account participant's address
+     */
     function earned(address _account) external view returns (uint256);
 
-    /// @notice returns reward amount for a specific time range
+    /**
+     * @notice returns reward amount for a specific time range.
+     */
     function getRewardForDuration() external view returns (uint256);
 
-    /// @notice performs a deposit operation for msg.sender
-    /// @dev updates participants rewards
-    /// @param _amount deposited amount
+    /**
+     * @notice performs a deposit operation for msg.sender.
+     *  @dev updates participants rewards
+     *  @param _amount deposited amount
+     */
     function deposit(uint256 _amount) external;
 
-    /// @notice claims investment from strategy
-    /// @dev updates participants rewards
-    /// @param _amount amount to withdraw
+    /**
+     * @notice claims investment from strategy.
+     *  @dev updates participants rewards
+     *  @param _amount amount to withdraw
+     */
     function withdraw(uint256 _amount) external;
 
-    /// @notice claims the rewards for msg.sender
+    /**
+     * @notice claims the rewards for msg.sender.
+     */
     function claimRewards() external;
 
-    /// @notice withdraws the entire investment and claims rewards for msg.sender
+    /**
+     * @notice withdraws the entire investment and claims rewards for msg.sender.
+     */
     function exit() external;
 }
