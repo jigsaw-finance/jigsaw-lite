@@ -12,3 +12,16 @@ docs/
 
 # Dotenv file
 .env
+
+.vscode 
+
+coverage/*
+coverage_report/*
+
+coverage.json
+
+report
+lcov.info
+out
+
+.DS_Store
