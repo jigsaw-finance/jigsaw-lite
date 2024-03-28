@@ -131,7 +131,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         address _initialOwner,
         address _tokenIn,
         address _rewardToken,
-        address _stakingManager
+        address _stakingManager,
+        uint256 _rewardsDuration
     )
         validAddress(_initialOwner)
         validAddress(_tokenIn)
@@ -141,7 +142,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         tokenIn = _tokenIn;
         rewardToken = _rewardToken;
         stakingManager = _stakingManager;
-        periodFinish = block.timestamp + 365 days;
+        rewardsDuration = _rewardsDuration;
+        periodFinish = block.timestamp + rewardsDuration;
     }
 
     // -- Administration --
