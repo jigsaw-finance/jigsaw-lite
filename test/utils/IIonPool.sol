@@ -23,4 +23,6 @@ interface IIonPool {
 
     function owner() external returns (address);
     function whitelist() external returns (address);
+    function updateSupplyCap(uint256 newSupplyCap) external;
+    function updateIlkDebtCeiling(uint8 ilkIndex, uint256 newCeiling) external;
 }
