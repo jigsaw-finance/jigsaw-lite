@@ -7,6 +7,8 @@ import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
 
@@ -97,12 +99,14 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @notice Stakes a specified amount of assets for the msg.sender.
-     * @dev Initiates the staking operation by depositing the specified `_amount`
-     * into the Ion Pool contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
+     * @dev Initiates the staking operation by transferring the specified `_amount`
+     * from the user's wallet to the contract, while simultaneously recording this deposit within the Jigsaw Staking
+     * Contract.
      *
      * Requirements:
      * - The caller must have sufficient assets to stake.
      * - The Ion Pool Contract's supply cap should not exceed its limit after the user's stake operation.
+     * - Prior approval is required for this contract to transfer assets on behalf of the user.
      *
      * Effects:
      * - If the user does not have an existing holding, a new holding is created for the user.
@@ -119,9 +123,14 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         address holding = userHolding[msg.sender];
 
         // Create a holding for msg.sender if there is no holding associated with their address yet.
-        if (holding == address(0)) _createHolding();
+        if (holding == address(0)) holding = _createHolding();
 
         emit Staked(msg.sender, _amount);
+
+        // Transfer assets from the user's wallet to this contract.
+        IERC20(underlyingAsset).transferFrom({ from: msg.sender, to: address(this), value: _amount });
+        // Approve Ion Pool contract to spend the transferred assets.
+        IERC20(underlyingAsset).approve({ spender: ionPool, value: _amount });
 
         // Supply to the Ion Pool to earn interest on underlying asset.
         IIonPool(ionPool).supply({ user: holding, amount: _amount, proof: new bytes32[](0) });
