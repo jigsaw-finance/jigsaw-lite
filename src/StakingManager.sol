@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import { AccessControlDefaultAdminRules } from
+    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
-import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
 
+import { IHolding } from "./interfaces/IHolding.sol";
+import { IIonPool } from "./interfaces/IIonPool.sol";
 import { IStakerManager } from "./interfaces/IStakerManager.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
-import { IIonPool } from "./interfaces/IIonPool.sol";
 
 /**
  * @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
@@ -20,11 +21,11 @@ import { IIonPool } from "./interfaces/IIonPool.sol";
  * @notice wstETH tokens staked through StakerManager are deposited into Ion protocol's Pool contract to generate yield,
  * while also farming jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
  *
- * @dev Inherits the OpenZepplin Ownable2Step and Pausable implentation
- *
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */
-contract StakerManager is IStakerManager, Pausable, Ownable2Step, ReentrancyGuard {
+contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
+    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
+
     /**
      * @notice Stores a mapping of each user to their holding.
      * @dev returns holding address.
@@ -68,21 +69,23 @@ contract StakerManager is IStakerManager, Pausable, Ownable2Step, ReentrancyGuar
      * @param _ionPool Address of the ionPool contract.
      */
     constructor(
-        address _initialOwner,
+        address _admin,
         address _underlyingAsset,
         address _rewardToken,
         address _ionPool
     )
-        Ownable(_initialOwner)
+        AccessControlDefaultAdminRules(
+            2 days,
+            _admin // Explicit initial `DEFAULT_ADMIN_ROLE` holder
+        )
     {
         underlyingAsset = _underlyingAsset;
         ionPool = _ionPool;
         staker = address(
-            new Staker(
-                _initialOwner,
-            _underlyingAsset,
-            _rewardToken
-            )
+            new Staker({
+              _initialOwner:  _admin,
+            _tokenIn: _underlyingAsset,
+            _rewardToken: _rewardToken})
         );
         holdingImplementationReference = address(new Holding());
     }
@@ -116,7 +119,7 @@ contract StakerManager is IStakerManager, Pausable, Ownable2Step, ReentrancyGuar
         emit Staked(msg.sender, _amount);
 
         // Supply to the Ion Pool to earn interest on underlying asset.
-        IIonPool(ionPool).supply(holding, _amount, new bytes32[](0));
+        IIonPool(ionPool).supply({ user: holding, amount: _amount, proof: new bytes32[](0) });
         // Track deposit in Staker to earn jPoints for staking.
         IStaker(staker).deposit(_amount);
     }
@@ -133,13 +136,72 @@ contract StakerManager is IStakerManager, Pausable, Ownable2Step, ReentrancyGuar
      * @param _to The address to receive the unstaked assets.
      * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(address _to, uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) { }
+    function unstake(address _to, uint256 _amount) external nonReentrant whenNotPaused validAmount(_amount) {
+        if (IStaker(staker).periodFinish() > block.timestamp) revert PreLockupPeriodUnstaking();
+        address holding = userHolding[msg.sender];
+
+        emit Unstaked(msg.sender, _amount);
+
+        IHolding(holding).unstake({ _to: _to, _amount: _amount });
+        IStaker(staker).withdraw(_amount);
+    }
 
     // --- Administration ---
 
-    // @dev renounce ownership override to avoid losing contract's ownership
-    function renounceOwnership() public pure override {
-        revert RenouncingOwnershipIsProhibited();
+    /**
+     * @notice Invokes a generic call on a holding contract.
+     * @dev This function is restricted to be called only by GENERIC_CALLER role
+     * @param _holding The address of the holding contract where the call is invoked.
+     * @param _contract The external contract being called by the holding contract.
+     * @param _call The call data.
+     * @return success Indicates whether the call was successful or not.
+     * @return result Data obtained from the external call.
+     */
+    function invokeHolding(
+        address _holding,
+        address _contract,
+        bytes calldata _call
+    )
+        external
+        onlyRole(GENERIC_CALLER_ROLE)
+        nonReentrant
+        returns (bool success, bytes memory result)
+    {
+        (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _call: _call });
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+        _pause();
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) whenPaused {
+        _unpause();
+    }
+
+    /**
+     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     */
+    function beginDefaultAdminTransfer(address newAdmin)
+        public
+        override(AccessControlDefaultAdminRules, IStakerManager)
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
+        _beginDefaultAdminTransfer(newAdmin);
     }
 
     // --- Helpers ---
@@ -162,7 +224,7 @@ contract StakerManager is IStakerManager, Pausable, Ownable2Step, ReentrancyGuar
         emit HoldingCreated(msg.sender, newHoldingAddress);
 
         // Initialize the newly created holding contract
-        Holding(newHoldingAddress).init(address(this));
+        IHolding(newHoldingAddress).init({ _stakingManager: address(this), _ionPool: ionPool });
     }
 
     // --- Getters ---
