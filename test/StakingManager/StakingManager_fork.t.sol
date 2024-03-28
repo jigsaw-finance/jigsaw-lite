@@ -16,6 +16,7 @@ contract IntegrationPoC is Test {
     string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
+    address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     jPoints rewardToken;
 
@@ -34,9 +35,19 @@ contract IntegrationPoC is Test {
         );
 
         vm.startPrank(ION_POOL.owner());
+        ION_POOL.updateIlkDebtCeiling(0, type(uint256).max);
+        ION_POOL.updateSupplyCap(1000e18);
         IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
         vm.stopPrank();
     }
 
-    function test_stake_when_authorized() public { }
+    function test_stake_when_authorized(uint256 _amount) public {
+        // vm.assume(_amount != 0);
+
+        _amount = bound(_amount, 1e18, 1000e18);
+        deal(wstETH, USER, _amount);
+
+        vm.prank(USER, USER);
+        stakingManager.stake(_amount);
+    }
 }
