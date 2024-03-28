@@ -24,7 +24,7 @@ import { IStaker } from "./interfaces/IStaker.sol";
  *
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */
-contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
+contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
     bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
 
     /**
