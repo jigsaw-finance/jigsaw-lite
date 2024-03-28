@@ -38,6 +38,23 @@ interface IStakerManager {
     event HoldingCreated(address indexed user, address indexed holdingAddress);
 
     /**
+     * @notice Invokes a generic call on a holding contract.
+     * @dev This function is restricted to be called only by GENERIC_CALLER role
+     * @param _holding The address of the holding contract where the call is invoked.
+     * @param _contract The external contract being called by the holding contract.
+     * @param _call The call data.
+     * @return success Indicates whether the call was successful or not.
+     * @return result Data obtained from the external call.
+     */
+    function invokeHolding(
+        address _holding,
+        address _contract,
+        bytes calldata _call
+    )
+        external
+        returns (bool success, bytes memory result);
+
+    /**
      * @notice Stakes a specified amount of assets for the msg.sender.
      * @dev Initiates the staking operation by depositing the specified `_amount`
      * into the Ion Pool contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.

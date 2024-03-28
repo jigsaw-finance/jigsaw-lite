@@ -15,6 +15,11 @@ interface IStaker {
     error InvalidAmount();
 
     /**
+     * @dev The operation failed because caller was unauthorized for the action.
+     */
+    error UnauthorizedCaller();
+
+    /**
      * @dev The operation failed because previous rewards period must end first.
      */
     error PreviousPeriodNotFinished(uint256 timestamp, uint256 periodFinish);
@@ -89,6 +94,11 @@ interface IStaker {
      * @notice returns staking token.
      */
     function tokenIn() external view returns (address);
+
+    /**
+     * @notice returns stakingManager address.
+     */
+    function stakingManager() external view returns (address);
 
     /**
      * @notice returns reward token.
@@ -191,26 +201,37 @@ interface IStaker {
     function getRewardForDuration() external view returns (uint256);
 
     /**
-     * @notice performs a deposit operation for msg.sender.
-     *  @dev updates participants rewards
-     *  @param _amount deposited amount
+     * @notice Performs a deposit operation for `_user`.
+     * @dev Updates participants' rewards.
+     *
+     * @param _user to deposit for.
+     * @param _amount to deposit.
      */
-    function deposit(uint256 _amount) external;
+    function deposit(address _user, uint256 _amount) external;
 
     /**
-     * @notice claims investment from strategy.
-     *  @dev updates participants rewards
-     *  @param _amount amount to withdraw
+     * @notice Withdraws investment from staking.
+     * @dev Updates participants' rewards.
+     *
+     * @param _user to withdraw for.
+     * @param _amount to withdraw.
      */
-    function withdraw(uint256 _amount) external;
+    function withdraw(address _user, uint256 _amount) external;
 
     /**
-     * @notice claims the rewards for msg.sender.
+     * @notice Claims the rewards for the caller.
+     * @dev This function allows the caller to claim their earned rewards.
+     *
+     *  @param _user to claim rewards for.
      */
-    function claimRewards() external;
+    function claimRewards(address _user) external;
 
     /**
-     * @notice withdraws the entire investment and claims rewards for msg.sender.
+     * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
+     * @dev This function enables the caller to exit the investment and claim their rewards.
+     *
+     *  @param _user to withdraw and claim for.
+     *  @param _amount to withdraw.
      */
-    function exit() external;
+    function exit(address _user, uint256 _amount) external;
 }
