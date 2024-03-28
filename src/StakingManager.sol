@@ -16,7 +16,8 @@ import { IStakerManager } from "./interfaces/IStakerManager.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
- * @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
+ *
+ *  @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
  * @notice It accepts Lido's wstETH token as the underlying asset for staking and subsequent token distribution.
  * @notice wstETH tokens staked through StakerManager are deposited into Ion protocol's Pool contract to generate yield,
  * while also farming jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
@@ -83,9 +84,11 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
         ionPool = _ionPool;
         staker = address(
             new Staker({
-              _initialOwner:  _admin,
+            _initialOwner:  _admin,
             _tokenIn: _underlyingAsset,
-            _rewardToken: _rewardToken})
+            _rewardToken: _rewardToken,
+            _stakingManager: address(this)
+            })
         );
         holdingImplementationReference = address(new Holding());
     }
@@ -121,7 +124,7 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
         // Supply to the Ion Pool to earn interest on underlying asset.
         IIonPool(ionPool).supply({ user: holding, amount: _amount, proof: new bytes32[](0) });
         // Track deposit in Staker to earn jPoints for staking.
-        IStaker(staker).deposit(_amount);
+        IStaker(staker).deposit({ _user: holding, _amount: _amount });
     }
 
     /**
@@ -136,14 +139,14 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
      * @param _to The address to receive the unstaked assets.
      * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(address _to, uint256 _amount) external nonReentrant whenNotPaused validAmount(_amount) {
+    function unstake(address _to, uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) {
         if (IStaker(staker).periodFinish() > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
         emit Unstaked(msg.sender, _amount);
 
         IHolding(holding).unstake({ _to: _to, _amount: _amount });
-        IStaker(staker).withdraw(_amount);
+        IStaker(staker).exit({ _user: holding, _amount: _amount });
     }
 
     // --- Administration ---
@@ -163,6 +166,7 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
         bytes calldata _call
     )
         external
+        override
         onlyRole(GENERIC_CALLER_ROLE)
         nonReentrant
         returns (bool success, bytes memory result)
@@ -172,23 +176,15 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
 
     /**
      * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
      */
-    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function pause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         _pause();
     }
 
     /**
      * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
      */
-    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) whenPaused {
+    function unpause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenPaused {
         _unpause();
     }
 
@@ -202,6 +198,12 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
     {
         if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
         _beginDefaultAdminTransfer(newAdmin);
+    }
+
+    // --- Getters ---
+
+    function _getUserHolding(address _user) public view returns (address) {
+        return userHolding[_user];
     }
 
     // --- Helpers ---
@@ -225,11 +227,5 @@ contract StakerManager is IStakerManager, Pausable, ReentrancyGuard, AccessContr
 
         // Initialize the newly created holding contract
         IHolding(newHoldingAddress).init({ _stakingManager: address(this), _ionPool: ionPool });
-    }
-
-    // --- Getters ---
-
-    function _getUserHolding(address _user) public view returns (address) {
-        return userHolding[_user];
     }
 }
