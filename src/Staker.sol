@@ -264,7 +264,14 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @dev Updates participants' rewards.
      * @param _amount The amount to withdraw.
      */
-    function withdraw(uint256 _amount) public override nonReentrant updateReward(msg.sender) validAmount(_amount) {
+    function withdraw(uint256 _amount)
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        updateReward(msg.sender)
+        validAmount(_amount)
+    {
         _totalSupply -= _amount;
         _balances[msg.sender] = _balances[msg.sender] - _amount;
         emit Withdrawn(msg.sender, _amount);
