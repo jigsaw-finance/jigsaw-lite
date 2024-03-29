@@ -116,6 +116,10 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         _;
     }
 
+    /**
+     * @dev Modifier to restrict a function to be called only by the staking manager.
+     * @notice Reverts the transaction if the caller is not the staking manager.
+     */
     modifier onlyStakingManager() {
         if (msg.sender != stakingManager) revert UnauthorizedCaller();
         _;
