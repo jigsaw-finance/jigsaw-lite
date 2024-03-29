@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -77,7 +77,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     /**
      * @notice Total supply limit of the staking token.
      */
-    uint256 public totalSupplyLimit = 1e34;
+    uint256 public constant totalSupplyLimit = 1e34;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
@@ -169,22 +169,24 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @param _amount The amount of new rewards.
      */
     function addRewards(uint256 _amount) external onlyOwner validAmount(_amount) updateReward(address(0)) {
-        if (rewardsDuration == 0) revert ZeroRewardsDuration();
+        uint256 duration = rewardsDuration;
+        if (duration == 0) revert ZeroRewardsDuration();
         if (block.timestamp >= periodFinish) {
-            rewardRate = _amount / rewardsDuration;
+            rewardRate = _amount / duration;
         } else {
             uint256 remaining = periodFinish - block.timestamp;
             uint256 leftover = remaining * rewardRate;
-            rewardRate = (_amount + leftover) / rewardsDuration;
+            rewardRate = (_amount + leftover) / duration;
         }
 
-        if (rewardRate == 0) revert RewardAmountTooSmall();
+        uint256 rate = rewardRate;
+        if (rate == 0) revert RewardAmountTooSmall();
 
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
-        if (rewardRate > (balance / rewardsDuration)) revert RewardRateTooBig();
+        if (rate > (balance / duration)) revert RewardRateTooBig();
 
         lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp + rewardsDuration;
+        periodFinish = block.timestamp + duration;
         emit RewardAdded(_amount);
     }
 
