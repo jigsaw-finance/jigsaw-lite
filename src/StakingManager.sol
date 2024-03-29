@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import { AccessControlDefaultAdminRules } from
     "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
@@ -64,11 +64,21 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     // --- Modifiers ---
 
     /**
-     * @dev Modifier to ensure that user has provided valid amount;
-     *
+     * @dev Modifier to check if the provided amount is valid.
+     * @param _amount The amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
         if (_amount == 0) revert InvalidAmount();
+        _;
+    }
+
+    /**
+     * @dev Modifier to check if the provided address is valid.
+     * @param _address The address to be checked for validity.
+     */
+
+    modifier validAddress(address _address) {
+        if (_address == address(0)) revert InvalidAddress();
         _;
     }
 
@@ -88,6 +98,11 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
             2 days,
             _admin // Explicit initial `DEFAULT_ADMIN_ROLE` holder
         )
+        validAddress(_admin)
+        validAddress(_underlyingAsset)
+        validAddress(_rewardToken)
+        validAddress(_ionPool)
+        validAmount(_rewardsDuration)
     {
         underlyingAsset = _underlyingAsset;
         ionPool = _ionPool;
@@ -156,7 +171,17 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @param _to The address to receive the unstaked assets.
      * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(address _to, uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) {
+    function unstake(
+        address _to,
+        uint256 _amount
+    )
+        external
+        override
+        nonReentrant
+        whenNotPaused
+        validAddress(_to)
+        validAmount(_amount)
+    {
         if (IStaker(staker).periodFinish() > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
@@ -184,6 +209,8 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     )
         external
         override
+        validAddress(_holding)
+        validAddress(_contract)
         onlyRole(GENERIC_CALLER_ROLE)
         nonReentrant
         returns (bool success, bytes memory result)
@@ -219,7 +246,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     // --- Getters ---
 
-    function _getUserHolding(address _user) public view returns (address) {
+    function _getUserHolding(address _user) external view returns (address) {
         return userHolding[_user];
     }
 
