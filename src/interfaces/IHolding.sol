@@ -8,6 +8,11 @@ interface IHolding {
      */
     error UnauthorizedCaller();
 
+    /**
+     * @dev The operation failed because provided address is zero.
+     */
+    error ZeroAddress();
+
     // --- Events ---
     /**
      * @dev emitted when participant unstaked
@@ -21,8 +26,8 @@ interface IHolding {
     function stakingManager() external view returns (address);
 
     /**
-     * @notice Initializes the contract.
-     * @param _stakingManager Address of the contract handling staking.
+     * @dev Initializes the contract (instead of a constructor) to be cloned.
+     * @param _stakingManager The address of the contract handling staking operations.
      * @param _ionPool Address of the Ion Pool contract.
      */
     function init(address _stakingManager, address _ionPool) external;
