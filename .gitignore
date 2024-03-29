@@ -25,3 +25,5 @@ lcov.info
 out
 
 .DS_Store
+
+bin
