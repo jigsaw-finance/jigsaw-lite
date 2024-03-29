@@ -19,11 +19,14 @@ import { IStakerManager } from "./interfaces/IStakerManager.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
+ * @title StakingManager
  *
- * @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
- * @notice It accepts Lido's wstETH token as the underlying asset for staking and subsequent token distribution.
- * @notice wstETH tokens staked through StakerManager are deposited into Ion protocol's Pool contract to generate yield,
- * while also farming jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
+ * @notice Manages the distribution of rewards to early users of Jigsaw by staking Lido's wstETH tokens.
+ * @notice wstETH tokens are staked through this contract and deposited into the Ion protocol's Pool contract to
+ * generate yield.
+ * @notice Additionally, stakers farm jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
+ *
+ * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `AccessControlDefaultAdminRules`.
  *
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */

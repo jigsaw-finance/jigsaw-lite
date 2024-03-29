@@ -12,9 +12,9 @@ import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
  * @title Staker
- * @notice Staker is a contract responsible for distributing rewards
- *  in the form of jPoints to early users of the Jigsaw protocol.
- * @notice This contract accepts wstETH tokens as `tokenIn` and distributes rewards accordingly.
+ * @notice Staker is a contract responsible for distributing rewards in the form of jPoints to early users
+ * of the Jigsaw protocol.
+ * @notice This contract accepts wstETH tokens as `tokenIn` and distributes rewards in jPoints accordingly.
  * @notice It is not intended for direct use; interaction should be done through the `stakingManager` contract.
  *
  * @dev This contract inherits functionalities from `Ownable2Step`, `Pausable`, and `ReentrancyGuard`.
