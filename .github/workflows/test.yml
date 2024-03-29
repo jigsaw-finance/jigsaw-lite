@@ -33,7 +33,7 @@ jobs:
       - name: create env file
         run: |
           touch .env
-          echo BASE_URL=${{ secrets.MAINNET_RPC_URL }} >> .env
+          echo MAINNET_RPC_URL=${{ secrets.MAINNET_RPC_URL }} >> .env
       - name: Run Forge tests
         run: |
           forge test --fuzz-runs 100 -vvv
