@@ -4,11 +4,12 @@ pragma solidity ^0.8.0;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import { IHolding } from "./interfaces/IHolding.sol";
 import { IIonPool } from "./interfaces/IIonPool.sol";
 
-contract Holding is IHolding, ReentrancyGuard {
+contract Holding is IHolding, ReentrancyGuard, Initializable {
     using SafeERC20 for IERC20;
 
     /**
@@ -21,11 +22,6 @@ contract Holding is IHolding, ReentrancyGuard {
      */
     address public ionPool;
 
-    /**
-     * @dev Indicates if the contract has been initialized.
-     */
-    bool private _initialized;
-
     // --- Modifiers ---
 
     modifier onlyStakingManager() {
@@ -33,16 +29,26 @@ contract Holding is IHolding, ReentrancyGuard {
         _;
     }
 
+    // --- Constructor ---
+
+    /**
+     * To prevent the implementation contract from being used, the _disableInitializers function is invoked
+     * in the constructor to automatically lock it when it is deployed.
+     */
+    constructor() {
+        _disableInitializers();
+    }
+
     // --- Initialization ---
 
     /**
      * @dev Initializes the contract (instead of a constructor) to be cloned.
      * @param _stakingManager The address of the contract handling staking operations.
+     * @param _ionPool Address of the Ion Pool contract.
      */
-    function init(address _stakingManager, address _ionPool) external {
-        require(!_initialized, "");
-        require(_stakingManager != address(0), "");
-        _initialized = true;
+    function init(address _stakingManager, address _ionPool) external initializer {
+        if (_ionPool == address(0)) revert ZeroAddress();
+        if (_stakingManager == address(0)) revert ZeroAddress();
         stakingManager = _stakingManager;
         ionPool = _ionPool;
     }
