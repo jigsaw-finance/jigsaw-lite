@@ -8,6 +8,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
@@ -19,7 +20,7 @@ import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
  *
- *  @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
+ * @notice `StakerManager` is a contract dedicated to distributing rewards to early users of Jigsaw.
  * @notice It accepts Lido's wstETH token as the underlying asset for staking and subsequent token distribution.
  * @notice wstETH tokens staked through StakerManager are deposited into Ion protocol's Pool contract to generate yield,
  * while also farming jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
@@ -27,6 +28,8 @@ import { IStaker } from "./interfaces/IStaker.sol";
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */
 contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
+    using SafeERC20 for IERC20;
+
     bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
 
     /**
@@ -128,9 +131,9 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         emit Staked(msg.sender, _amount);
 
         // Transfer assets from the user's wallet to this contract.
-        IERC20(underlyingAsset).transferFrom({ from: msg.sender, to: address(this), value: _amount });
+        IERC20(underlyingAsset).safeTransferFrom({ from: msg.sender, to: address(this), value: _amount });
         // Approve Ion Pool contract to spend the transferred assets.
-        IERC20(underlyingAsset).approve({ spender: ionPool, value: _amount });
+        IERC20(underlyingAsset).safeIncreaseAllowance({ spender: ionPool, value: _amount });
 
         // Supply to the Ion Pool to earn interest on underlying asset.
         IIonPool(ionPool).supply({ user: holding, amount: _amount, proof: new bytes32[](0) });
