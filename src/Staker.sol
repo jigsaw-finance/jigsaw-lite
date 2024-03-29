@@ -131,6 +131,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @param _tokenIn Address of the staking token.
      * @param _rewardToken Address of the reward token.
      */
+
     constructor(
         address _initialOwner,
         address _tokenIn,
@@ -141,6 +142,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         validAddress(_initialOwner)
         validAddress(_tokenIn)
         validAddress(_rewardToken)
+        validAddress(_stakingManager)
         Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
