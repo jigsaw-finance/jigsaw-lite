@@ -16,6 +16,12 @@ interface IStakerManager {
      * @dev The operation failed because amount is zero;
      */
     error InvalidAmount();
+
+    /**
+     * @dev The operation failed because provided address is invalid.
+     */
+    error InvalidAddress();
+
     /**
      * @dev The operation failed because unstaking is not possible before lockup period ends;
      */
