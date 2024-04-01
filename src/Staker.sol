@@ -131,7 +131,6 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @param _tokenIn Address of the staking token.
      * @param _rewardToken Address of the reward token.
      */
-
     constructor(
         address _initialOwner,
         address _tokenIn,
@@ -316,14 +315,24 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @dev This function allows the caller to claim their earned rewards.
      *
      *  @param _user to claim rewards for.
+     *  @param _to address to which rewards will be sent.
      */
-    function claimRewards(address _user) public override onlyStakingManager nonReentrant updateReward(_user) {
+    function claimRewards(
+        address _user,
+        address _to
+    )
+        public
+        override
+        onlyStakingManager
+        nonReentrant
+        updateReward(_user)
+    {
         uint256 reward = rewards[_user];
         if (reward == 0) revert NothingToClaim();
 
         rewards[_user] = 0;
         emit RewardPaid(_user, reward);
-        IERC20(rewardToken).safeTransfer(_user, reward);
+        IERC20(rewardToken).safeTransfer(_to, reward);
     }
 
     /**
@@ -331,14 +340,13 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      * @dev This function enables the caller to exit the investment and claim their rewards.
      *
      *  @param _user to withdraw and claim for.
-     *  @param _amount to withdraw.
+     *  @param _to address to which funds will be sent.
      */
-    function exit(address _user, uint256 _amount) external override onlyStakingManager {
-        withdraw(_user, _amount);
+    function exit(address _user, address _to) external override onlyStakingManager {
+        withdraw(_user, _balances[_user]);
 
-        uint256 reward = rewards[_user];
-        if (reward > 0) {
-            claimRewards(_user);
+        if (rewards[_user] > 0) {
+            claimRewards(_user, _to);
         }
     }
 
