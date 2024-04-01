@@ -44,21 +44,22 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     /**
      * @dev Address of holding implementation to be cloned from
      */
-    address public immutable holdingImplementationReference;
+    address public immutable override holdingImplementationReference;
 
     /**
      * @dev Address of the underlying asset used for staking.
      */
-    address public immutable underlyingAsset;
+    address public immutable override underlyingAsset;
 
     /**
      * @dev Address of the Ion Pool contract.
      */
-    address public immutable ionPool;
+    address public immutable override ionPool;
 
     /**
      * @dev Address of the Staker contract used for jPoints distribution.
      */
+    address public immutable override staker;
 
     /**
      * @dev Represents the expiration date for the staking lockup period.
