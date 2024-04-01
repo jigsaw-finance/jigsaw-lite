@@ -25,4 +25,12 @@ interface IIonPool {
     function whitelist() external returns (address);
     function updateSupplyCap(uint256 newSupplyCap) external;
     function updateIlkDebtCeiling(uint8 ilkIndex, uint256 newCeiling) external;
+
+    function balanceOf(address user) external view returns (uint256);
+
+    /**
+     * @dev Accounting is done in normalized balances
+     * @param user to get normalized balance of
+     */
+    function normalizedBalanceOf(address user) external returns (uint256);
 }
