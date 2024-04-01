@@ -44,6 +44,34 @@ interface IStakerManager {
     event HoldingCreated(address indexed user, address indexed holdingAddress);
 
     /**
+     * @dev Address of holding implementation to be cloned from
+     */
+    function holdingImplementationReference() external view returns (address);
+
+    /**
+     * @dev Address of the underlying asset used for staking.
+     */
+    function underlyingAsset() external view returns (address);
+
+    /**
+     * @dev Address of the Ion Pool contract.
+     */
+    function ionPool() external view returns (address);
+
+    /**
+     * @dev Address of the Staker contract used for jPoints distribution.
+     */
+    function staker() external view returns (address);
+
+    /**
+     * @dev Represents the expiration date for the staking lockup period.
+     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
+     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * @return The expiration date for the staking lockup period, in Unix timestamp format.
+     */
+    function lockupExpirationDate() external view returns (uint256);
+
+    /**
      * @notice Invokes a generic call on a holding contract.
      * @dev This function is restricted to be called only by GENERIC_CALLER role
      * @param _holding The address of the holding contract where the call is invoked.
@@ -83,10 +111,12 @@ interface IStakerManager {
      * - The `_to` address must be a valid Ethereum address.
      *
      * @param _to The address to receive the unstaked assets.
-     * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(address _to, uint256 _amount) external;
+    function unstake(address _to) external;
 
+    /**
+     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     */
     function beginDefaultAdminTransfer(address newAdmin) external;
 
     /**
@@ -106,4 +136,11 @@ interface IStakerManager {
      * - The contract must be paused.
      */
     function unpause() external;
+
+    /**
+     * @dev Get the address of the holding associated with the user.
+     * @param _user The address of the user.
+     * @return the holding address.
+     */
+    function _getUserHolding(address _user) external view returns (address);
 }

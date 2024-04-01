@@ -44,22 +44,30 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     /**
      * @dev Address of holding implementation to be cloned from
      */
-    address public immutable holdingImplementationReference;
+    address public immutable override holdingImplementationReference;
 
     /**
      * @dev Address of the underlying asset used for staking.
      */
-    address public immutable underlyingAsset;
+    address public immutable override underlyingAsset;
 
     /**
      * @dev Address of the Ion Pool contract.
      */
-    address public immutable ionPool;
+    address public immutable override ionPool;
 
     /**
      * @dev Address of the Staker contract used for jPoints distribution.
      */
-    address public immutable staker;
+    address public immutable override staker;
+
+    /**
+     * @dev Represents the expiration date for the staking lockup period.
+     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
+     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * @return The expiration date for the staking lockup period, in Unix timestamp format.
+     */
+    uint256 public immutable override lockupExpirationDate;
 
     // --- Modifiers ---
 
@@ -76,7 +84,6 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @dev Modifier to check if the provided address is valid.
      * @param _address The address to be checked for validity.
      */
-
     modifier validAddress(address _address) {
         if (_address == address(0)) revert InvalidAddress();
         _;
@@ -108,14 +115,15 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         ionPool = _ionPool;
         staker = address(
             new Staker({
-            _initialOwner:  _admin,
-            _tokenIn: _underlyingAsset,
-            _rewardToken: _rewardToken,
-            _stakingManager: address(this),
-            _rewardsDuration: _rewardsDuration
+                _initialOwner: _admin,
+                _tokenIn: _underlyingAsset,
+                _rewardToken: _rewardToken,
+                _stakingManager: address(this),
+                _rewardsDuration: _rewardsDuration
             })
         );
         holdingImplementationReference = address(new Holding());
+        lockupExpirationDate = block.timestamp + _rewardsDuration;
     }
 
     /**
@@ -160,8 +168,8 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     }
 
     /**
-     * @notice Withdraws a specified amount of staked assets.
-     * @dev Initiates the withdrawal of staked assets by transferring the specified `_amount`
+     * @notice Withdraws a all staked assets.
+     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated rewards
      * from the Ion Pool contract to the designated recipient `_to`.
      *
      * Requirements:
@@ -169,26 +177,15 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * - The `_to` address must be a valid Ethereum address.
      *
      * @param _to The address to receive the unstaked assets.
-     * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(
-        address _to,
-        uint256 _amount
-    )
-        external
-        override
-        nonReentrant
-        whenNotPaused
-        validAddress(_to)
-        validAmount(_amount)
-    {
-        if (IStaker(staker).periodFinish() > block.timestamp) revert PreLockupPeriodUnstaking();
+    function unstake(address _to) external override nonReentrant whenNotPaused validAddress(_to) {
+        if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
-        emit Unstaked(msg.sender, _amount);
+        emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
-        IHolding(holding).unstake({ _to: _to, _amount: _amount });
-        IStaker(staker).exit({ _user: holding, _amount: _amount });
+        IHolding(holding).unstake({ _to: _to, _amount: IIonPool(ionPool).balanceOf(holding) });
+        IStaker(staker).exit({ _user: holding, _to: _to });
     }
 
     // --- Administration ---
@@ -246,7 +243,12 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     // --- Getters ---
 
-    function _getUserHolding(address _user) external view returns (address) {
+    /**
+     * @dev Get the address of the holding associated with the user.
+     * @param _user The address of the user.
+     * @return the holding address.
+     */
+    function _getUserHolding(address _user) external view override returns (address) {
         return userHolding[_user];
     }
 
