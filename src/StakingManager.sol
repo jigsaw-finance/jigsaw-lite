@@ -59,7 +59,14 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     /**
      * @dev Address of the Staker contract used for jPoints distribution.
      */
-    address public immutable staker;
+
+    /**
+     * @dev Represents the expiration date for the staking lockup period.
+     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
+     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * @return The expiration date for the staking lockup period, in Unix timestamp format.
+     */
+    uint256 public immutable override lockupExpirationDate;
 
     // --- Modifiers ---
 
@@ -116,6 +123,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
             })
         );
         holdingImplementationReference = address(new Holding());
+        lockupExpirationDate = block.timestamp + _rewardsDuration;
     }
 
     /**
@@ -182,7 +190,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         validAddress(_to)
         validAmount(_amount)
     {
-        if (IStaker(staker).periodFinish() > block.timestamp) revert PreLockupPeriodUnstaking();
+        if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
         emit Unstaked(msg.sender, _amount);
