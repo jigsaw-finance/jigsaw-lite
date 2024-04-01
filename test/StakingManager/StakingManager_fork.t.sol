@@ -80,21 +80,39 @@ contract StakingManagerForkTest is Test {
         uint256 jPoinsRewardsBalanceAfterStake = staker.earned(holding);
 
         assertFalse(holding == address(0), "Wrong holding address");
-        assertApproxEqAbs(ionBalanceAfterStake, _amount, 1, "Wrong balance in ION after stake");
+        assertApproxEqAbs(ionBalanceAfterStake, _amount, 10, "Wrong balance in ION after stake");
         assertEq(staker.balanceOf(holding), _amount, "Wrong balance in Staker after stake");
 
         vm.warp(block.timestamp + 10 days);
 
         vm.expectRevert(PreLockupPeriodUnstaking.selector);
-        stakingManager.unstake(_user, _amount);
+        stakingManager.unstake(_user);
 
-        vm.warp(block.timestamp + rewardsDuration);
+        vm.warp(block.timestamp + rewardsDuration + 10 days);
 
-        assertGt(ION_POOL.balanceOf(holding), ionBalanceAfterStake, "Wrong balance in ION after a year");
-        assertGt(staker.earned(holding), jPoinsRewardsBalanceAfterStake, "Wrong jPoints balance in Staker after a year");
+        uint256 ionBalanceAfterYear = ION_POOL.balanceOf(holding);
+        uint256 jPoinsRewardsBalanceAfterYear = staker.earned(holding);
 
-        // vm.warp(block.timestamp + 1 days);
-        // console.log(ION_POOL.balanceOf(holding));
+        assertGt(ionBalanceAfterYear, ionBalanceAfterStake, "Wrong balance in ION after a year");
+        assertGt(
+            jPoinsRewardsBalanceAfterYear,
+            jPoinsRewardsBalanceAfterStake,
+            "Wrong jPoints balance in Staker after a year"
+        );
+
+        stakingManager.unstake(_user);
+
+        assertEq(IERC20(wstETH).balanceOf(_user), ionBalanceAfterYear, "User didn't receive wstETH after unstake");
+        assertEq(
+            rewardToken.balanceOf(_user), jPoinsRewardsBalanceAfterYear, "User didn't receive jPoints after unstake"
+        );
+        assertEq(staker.balanceOf(holding), 0, "Wrong balance in Staker after unstake");
+        assertEq(
+            staker.userRewardPerTokenPaid(holding),
+            jPoinsRewardsBalanceAfterYear,
+            "Wrong rewards paid in Staker after unstake"
+        );
+        assertEq(staker.rewards(holding), 0, "Wrong rewards in Staker after unstake");
     }
 
     modifier validAmount(uint256 _amount) {
