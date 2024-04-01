@@ -111,10 +111,12 @@ interface IStakerManager {
      * - The `_to` address must be a valid Ethereum address.
      *
      * @param _to The address to receive the unstaked assets.
-     * @param _amount The amount of staked assets to withdraw.
      */
-    function unstake(address _to, uint256 _amount) external;
+    function unstake(address _to) external;
 
+    /**
+     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     */
     function beginDefaultAdminTransfer(address newAdmin) external;
 
     /**
@@ -134,4 +136,11 @@ interface IStakerManager {
      * - The contract must be paused.
      */
     function unpause() external;
+
+    /**
+     * @dev Get the address of the holding associated with the user.
+     * @param _user The address of the user.
+     * @return the holding address.
+     */
+    function _getUserHolding(address _user) external view returns (address);
 }

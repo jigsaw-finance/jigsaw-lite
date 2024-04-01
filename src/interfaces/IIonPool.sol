@@ -20,4 +20,10 @@ interface IIonPool {
      * @param proof merkle proof that the user is whitelisted.
      */
     function supply(address user, uint256 amount, bytes32[] calldata proof) external;
+
+    /**
+     * @dev Current token balance
+     * @param user to get balance of
+     */
+    function balanceOf(address user) external view returns (uint256);
 }
