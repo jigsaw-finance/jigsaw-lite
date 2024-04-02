@@ -142,6 +142,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         validAddress(_tokenIn)
         validAddress(_rewardToken)
         validAddress(_stakingManager)
+        validAmount(_rewardsDuration)
         Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
