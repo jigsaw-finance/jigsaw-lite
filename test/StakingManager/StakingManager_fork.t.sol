@@ -24,8 +24,8 @@ contract StakingManagerForkTest is Test {
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
     address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    jPoints rewardToken;
 
+    jPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
 
@@ -55,21 +55,6 @@ contract StakingManagerForkTest is Test {
         IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
         vm.stopPrank();
     }
-
-    // function test_stake_when_authorized(
-    //     address _user,
-    //     uint256 _amount
-    // )
-    //     public
-    //     validAddress(_user)
-    //     validAmount(_amount)
-    // {
-    //     address holding = _stake(_user, _amount);
-
-    //     assertNotEq(holding, address(0));
-    //     // assertNotEq(ION_POOL.normalizedBalanceOf(holding), _amount);
-    //     console.log(ION_POOL.balanceOf(0x2F2AD3E2C160d3De9503BB63b864EE8358Cc5050));
-    // }
 
     function test_stake_when_newUser() public {
         address _user = USER;
