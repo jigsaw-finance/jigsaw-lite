@@ -43,7 +43,7 @@ contract StakerInvariantTest is Test {
     }
 
     // Test that staker's tokenIn balance is correct at all times
-    function invariant_staker_tokenInBalance_equals_tracked_deposits() external {
+    function invariant_staker_tokenInBalance_equals_tracked_deposits() external view {
         assertEq(
             handler.totalDeposited() - handler.totalWithdrawn(),
             IERC20(tokenIn).balanceOf(address(staker)),
@@ -52,7 +52,7 @@ contract StakerInvariantTest is Test {
     }
 
     // Test that staker's reward token's balance is correct at all times
-    function invariant_staker_rewardTokenBalance_equals_tracked_deposits() external {
+    function invariant_staker_rewardTokenBalance_equals_tracked_deposits() external view {
         assertEq(
             handler.totalRewardsAmount() - handler.totalRewardsClaimed(),
             IERC20(rewardToken).balanceOf(address(staker)),
@@ -61,14 +61,14 @@ contract StakerInvariantTest is Test {
     }
 
     // Test that the total of all deposits is equal to the pool's totalSupply
-    function invariant_staker_totalSupply_equal_deposits() public {
+    function invariant_staker_totalSupply_equal_deposits() external view {
         assertGe(
             staker.totalSupply(), handler.totalDeposited() - handler.totalWithdrawn(), "Staker's total supply incorrect"
         );
     }
 
     // Test that the sum of all user rewards is equal to the the sum of all amounts of rewards distributed
-    function invariant_total_rewards() external {
+    function invariant_total_rewards() external view {
         assertEq(handler.totalRewardsAmount(), handler.getUserRewards(), "Staker's rewards count incorrect");
     }
 }
