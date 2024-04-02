@@ -17,6 +17,7 @@ IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78
 
 contract StakingManagerForkTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
+    error RenouncingDefaultAdminRoleProhibited();
 
     event Paused(address account);
     event Unpaused(address account);
@@ -87,5 +88,30 @@ contract StakingManagerForkTest is Test {
         stakingManager.unpause();
         assertEq(stakingManager.paused(), false);
         vm.stopPrank();
+    }
+
+    // Tests if beginDefaultAdminTransfer reverts correctly when transferred to address(0)
+    function test_beginDefaultAdminTransfer_when_address0() public {
+        vm.prank(ADMIN, ADMIN);
+        vm.expectRevert(RenouncingDefaultAdminRoleProhibited.selector);
+        stakingManager.beginDefaultAdminTransfer(address(0));
+    }
+
+    // Tests if renouncing ownership works correctly
+    function test_beginDefaultAdminTransfer_when_authorized() public {
+        address newAdmin = address(uint160(uint256(keccak256(bytes("NEW ADMIN")))));
+
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.beginDefaultAdminTransfer(newAdmin);
+
+        (address _newAdmin,) = stakingManager.pendingDefaultAdmin();
+        vm.assertEq(_newAdmin, newAdmin, "Incorrect pendingDefaultAdmin");
+
+        vm.warp(block.timestamp + stakingManager.defaultAdminDelay() + 1);
+
+        vm.prank(newAdmin, newAdmin);
+        stakingManager.acceptDefaultAdminTransfer();
+
+        vm.assertEq(stakingManager.defaultAdmin(), newAdmin, "Incorrect new admin");
     }
 }
