@@ -40,6 +40,7 @@ contract StakerTest is Test {
 
     address internal OWNER = vm.addr(uint256(keccak256(bytes("Owner"))));
     address internal STAKING_MANAGER = vm.addr(uint256(keccak256(bytes("Staking Manager"))));
+
     address internal tokenIn;
     address internal rewardToken;
     uint256 internal rewardsDuration = 365 days;
