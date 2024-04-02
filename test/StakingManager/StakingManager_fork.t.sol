@@ -17,6 +17,7 @@ IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78
 
 contract StakingManagerForkTest is Test {
     error PreLockupPeriodUnstaking();
+    error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
 
     uint256 constant STAKING_SUPPLY_LIMIT = 1e34;
     uint256 constant rewardsDuration = 365 days;
@@ -70,6 +71,7 @@ contract StakingManagerForkTest is Test {
 
         vm.warp(block.timestamp + 10 days);
 
+        vm.prank(_user, _user);
         vm.expectRevert(PreLockupPeriodUnstaking.selector);
         stakingManager.unstake(_user);
 
@@ -85,6 +87,7 @@ contract StakingManagerForkTest is Test {
             "Wrong jPoints balance in Staker after a year"
         );
 
+        vm.prank(_user, _user);
         stakingManager.unstake(_user);
 
         assertEq(IERC20(wstETH).balanceOf(_user), ionBalanceAfterYear, "User didn't receive wstETH after unstake");
@@ -98,6 +101,34 @@ contract StakingManagerForkTest is Test {
             "Wrong rewards paid in Staker after unstake"
         );
         assertEq(staker.rewards(holding), 0, "Wrong rewards in Staker after unstake");
+    }
+
+    // Tests if invokeHolding reverts correctly when unauthorized
+    function test_invokeHolding_when_unauthorized() public {
+        address caller = address(uint160(uint256(keccak256("random caller"))));
+        address holding = address(uint160(uint256(keccak256("random holding"))));
+        address callableContract = address(uint160(uint256(keccak256("random contract"))));
+
+        vm.prank(caller, caller);
+        vm.expectRevert();
+        stakingManager.invokeHolding(holding, callableContract, bytes(""));
+    }
+
+    // Tests if invokeHolding works correctly when authorized
+    function test_invokeHolding_when_authorized() public {
+        address user = USER;
+        uint256 _amount = 1e18;
+
+        address genericCaller = address(uint160(uint256(keccak256("generic caller"))));
+        address holding = _stake(user, _amount);
+        address callableContract = wstETH;
+
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.grantRole(keccak256("GENERIC_CALLER"), genericCaller);
+
+        vm.prank(genericCaller, genericCaller);
+        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+        assertEq(success, true, "invokeHolding failed");
     }
 
     modifier validAmount(uint256 _amount) {
@@ -118,6 +149,7 @@ contract StakingManagerForkTest is Test {
         vm.startPrank(_user, _user);
         IERC20(wstETH).approve(address(stakingManager), _amount);
         stakingManager.stake(_amount);
+        vm.stopPrank();
 
         return stakingManager._getUserHolding(_user);
     }
