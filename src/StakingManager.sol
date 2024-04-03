@@ -65,9 +65,10 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @dev Represents the expiration date for the staking lockup period.
      * After this date, staked funds can be withdrawn. If not withdrawn will continue to
      * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
-    uint256 public immutable override lockupExpirationDate;
+    uint256 public override lockupExpirationDate;
 
     // --- Modifiers ---
 
@@ -239,6 +240,22 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     {
         if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
         _beginDefaultAdminTransfer(newAdmin);
+    }
+
+    /**
+     * @dev Allows the default admin role to set a new lockup expiration date.
+     *
+     * Requirements:
+     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     *
+     * Emits:
+     * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated
+     *
+     * @param _newDate The new lockup expiration date to be set.
+     */
+    function setLockupExpirationDate(uint256 _newDate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
+        lockupExpirationDate = _newDate;
     }
 
     // --- Getters ---
