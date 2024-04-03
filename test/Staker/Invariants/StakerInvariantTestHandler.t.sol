@@ -10,10 +10,10 @@ import { StdUtils } from "forge-std/StdUtils.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
-import { Staker } from "../../src/Staker.sol";
+import { SampleTokenERC20 } from "../../utils/SampleTokenERC20.sol";
+import { Staker } from "../../../src/Staker.sol";
 
-import { IStaker } from "../../src/interfaces/IStaker.sol";
+import { IStaker } from "../../../src/interfaces/IStaker.sol";
 
 contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -50,13 +50,6 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
         address user = pickUpUser(user_idx);
 
         amount = bound(amount, 1, 1e34);
-
-        if (IERC20Metadata(tokenIn).balanceOf(user) < amount) {
-            deal(tokenIn, user, amount);
-        }
-
-        vm.prank(user, user);
-        IERC20Metadata(tokenIn).approve(address(staker), amount);
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
         staker.deposit(user, amount);

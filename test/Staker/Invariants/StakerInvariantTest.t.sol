@@ -6,11 +6,11 @@ import "forge-std/console.sol";
 
 import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
-import { Staker } from "../../src/Staker.sol";
+import { SampleTokenERC20 } from "../../utils/SampleTokenERC20.sol";
+import { Staker } from "../../../src/Staker.sol";
 import { StakerInvariantTestHandler } from "./StakerInvariantTestHandler.t.sol";
 
-import { IStaker } from "../../src/interfaces/IStaker.sol";
+import { IStaker } from "../../../src/interfaces/IStaker.sol";
 
 contract StakerInvariantTest is Test {
     address internal OWNER = vm.addr(uint256(keccak256(bytes("Owner"))));
@@ -40,15 +40,6 @@ contract StakerInvariantTest is Test {
 
         handler = new StakerInvariantTestHandler(OWNER, staker, tokenIn, rewardToken);
         targetContract(address(handler));
-    }
-
-    // Test that staker's tokenIn balance is correct at all times
-    function invariant_staker_tokenInBalance_equals_tracked_deposits() external view {
-        assertEq(
-            handler.totalDeposited() - handler.totalWithdrawn(),
-            IERC20(tokenIn).balanceOf(address(staker)),
-            "Staker's tokenIn balance incorrect"
-        );
     }
 
     // Test that staker's reward token's balance is correct at all times
