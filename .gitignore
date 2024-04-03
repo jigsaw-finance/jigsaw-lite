@@ -14,6 +14,7 @@ docs/
 .env
 
 .vscode 
+.idea
 
 coverage/*
 coverage_report/*
