@@ -44,6 +44,13 @@ interface IStakerManager {
     event HoldingCreated(address indexed user, address indexed holdingAddress);
 
     /**
+     * @dev emitted when the expiration date of a lockup is updated.
+     * @param oldDate The previous expiration date of the lockup.
+     * @param newDate The new expiration date of the lockup.
+     */
+    event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
+
+    /**
      * @dev Address of holding implementation to be cloned from
      */
     function holdingImplementationReference() external view returns (address);
