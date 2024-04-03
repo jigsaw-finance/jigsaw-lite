@@ -170,6 +170,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @notice Withdraws a all staked assets.
+     *
      * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated rewards
      * from the Ion Pool contract to the designated recipient `_to`.
      *
@@ -193,10 +194,13 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @notice Invokes a generic call on a holding contract.
+     *
      * @dev This function is restricted to be called only by GENERIC_CALLER role
+     *
      * @param _holding The address of the holding contract where the call is invoked.
      * @param _contract The external contract being called by the holding contract.
      * @param _call The call data.
+     *
      * @return success Indicates whether the call was successful or not.
      * @return result Data obtained from the external call.
      */
