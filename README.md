@@ -1,66 +1,59 @@
-## Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+# Jigsaw
 
-Foundry consists of:
+[![test](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml/badge.svg)](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/groksmith/jigsaw-lite/blob/main/LICENSE)
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+[foundry]: https://getfoundry.sh/
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-## Documentation
+## Overview
 
-https://book.getfoundry.sh/
 
-## Usage
+## Submodules
 
-### Build
 
-```shell
-$ forge build
+## Setup
+
+This project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
+
+```sh
+git clone git@github.com:groksmith/jigsaw-lite.git
+cd jigsaw-lite
+forge install
 ```
 
-### Test
+## Commands
+To make it easier to perform some tasks within the repo, a few commands are available through a makefile:
 
-```shell
-$ forge test
-```
+### Build Commands
 
-### Format
+| Command | Action |
+|---|---|
+| `cmd` | Description |
 
-```shell
-$ forge fmt
-```
 
-### Gas Snapshots
+### Test Commands
 
-```shell
-$ forge snapshot
-```
+| Command | Description |
+|---|---|
+| `cmd` | Description |
 
-### Anvil
+Specific tests can be run using `forge test` conventions, specified in more detail in the Foundry [Book](https://book.getfoundry.sh/reference/forge/forge-test#test-options).
 
-```shell
-$ anvil
-```
 
-### Deploy
+## Audit Reports
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+### XXXX Release
 
-### Cast
+| Auditor | Report Link |
+|---|---|
 
-```shell
-$ cast <subcommand>
-```
+## Bug Bounty
 
-### Help
+## About Jigsaw
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+---
+
+<p align="center">
+</p>
