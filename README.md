@@ -10,12 +10,11 @@
 ## Overview
 
 
-## Submodules
-
-
 ## Setup
 
-This project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
+This project uses [just](https://just.systems/man/en/) to run project-specific commands. Refer to installation instructions [here](https://github.com/casey/just?tab=readme-ov-file#installation).
+
+Project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
 
 ```sh
 git clone git@github.com:groksmith/jigsaw-lite.git
@@ -24,20 +23,28 @@ forge install
 ```
 
 ## Commands
-To make it easier to perform some tasks within the repo, a few commands are available through a makefile:
+To make it easier to perform some tasks within the repo, a few commands are available through a justfile:
 
 ### Build Commands
 
 | Command | Action |
 |---|---|
-| `cmd` | Description |
+| `clean-all` | Description |
+| `install-vyper` | Install the Vyper venv |
+| `install` | Install the Modules |
+| `update` | Update Dependencies |
+| `build` | Build |
+| `format` | Format code |
+| `remap` | Update remappings.txt |
+| `clean` | Clean artifacts, caches |
 
 
 ### Test Commands
 
 | Command | Description |
 |---|---|
-| `cmd` | Description |
+| `test-all` | Run all tests |
+| `coverage-all` | Run coverage |
 
 Specific tests can be run using `forge test` conventions, specified in more detail in the Foundry [Book](https://book.getfoundry.sh/reference/forge/forge-test#test-options).
 
