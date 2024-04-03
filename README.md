@@ -8,7 +8,7 @@
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
 ## Overview
-
+TBD
 
 ## Setup
 
@@ -51,14 +51,15 @@ Specific tests can be run using `forge test` conventions, specified in more deta
 
 ## Audit Reports
 
-### XXXX Release
+### Upcoming Release
 
 | Auditor | Report Link |
 |---|---|
+|N/A|N/A|
 
-## Bug Bounty
 
 ## About Jigsaw
+TBD
 
 ---
 
