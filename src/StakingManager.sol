@@ -52,6 +52,11 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     address public immutable override underlyingAsset;
 
     /**
+     * @dev Address of the reward token distributed for staking.
+     */
+    address public immutable override rewardToken;
+
+    /**
      * @dev Address of the Ion Pool contract.
      */
     address public immutable override ionPool;
@@ -113,6 +118,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         validAmount(_rewardsDuration)
     {
         underlyingAsset = _underlyingAsset;
+        rewardToken = _rewardToken;
         ionPool = _ionPool;
         staker = address(
             new Staker({

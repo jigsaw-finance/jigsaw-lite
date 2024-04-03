@@ -61,6 +61,11 @@ interface IStakerManager {
     function underlyingAsset() external view returns (address);
 
     /**
+     * @dev Address of the reward token distributed for staking.
+     */
+    function rewardToken() external view returns (address);
+
+    /**
      * @dev Address of the Ion Pool contract.
      */
     function ionPool() external view returns (address);
