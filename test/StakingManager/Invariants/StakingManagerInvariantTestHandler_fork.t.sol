@@ -77,6 +77,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     IStaker internal staker;
     IIonPool internal ionPool;
 
+    uint256 public initialUsersNumber;
     address[] public USER_ADDRESSES;
     mapping(address => address) userHolding;
 
@@ -90,13 +91,15 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     uint256 public totalRewardsAmount;
     uint256 public totalRewardsClaimed;
 
-    constructor(StakingManager _stakingManager) {
+    constructor(StakingManager _stakingManager, uint256 _initialUsersNum) {
         stakingManager = _stakingManager;
         ADMIN = stakingManager.defaultAdmin();
         staker = IStaker(stakingManager.staker());
         ionPool = IIonPool(stakingManager.ionPool());
         wstETH = stakingManager.underlyingAsset();
         rewardToken = stakingManager.rewardToken();
+
+        initialUsersNumber = _initialUsersNum;
 
         _initAllUsers();
 
@@ -106,7 +109,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     // Unstake for a user
     function unstake(uint256 user_idx) external {
         if (investorsSet.length() == 0) {
-            initRandomUser(user_idx);
+            _initRandomUser(user_idx);
         }
         address user = investorsSet.at(bound(user_idx, 0, investorsSet.length() - 1));
 
@@ -122,35 +125,20 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     }
 
     // Utility functions
+
     function _initAllUsers() private {
-        for (uint256 i = 0; i < 2; i++) {
-            USER_ADDRESSES.push(vm.addr(uint256(keccak256(abi.encodePacked(i)))));
-
-            address _user = USER_ADDRESSES[i];
-            uint256 _amount = bound(uint256(i), 0.1e18, 1e18);
-
-            deal(wstETH, _user, _amount);
-
-            vm.startPrank(_user, _user);
-            IERC20(wstETH).approve(address(stakingManager), _amount);
-            stakingManager.stake(_amount);
-            vm.stopPrank();
-
-            userHolding[_user] = stakingManager.getUserHolding(_user);
-
-            investorsSet.add(_user);
-            totalDeposited += _amount;
+        for (uint256 i = 0; i < initialUsersNumber; i++) {
+            _initRandomUser(i);
         }
     }
 
-    // Utility functions
-    function initRandomUser(uint256 id) private returns (address _user) {
+    function _initRandomUser(uint256 id) private returns (address _user) {
         _user = vm.addr(uint256(keccak256(abi.encodePacked(id))));
-
         USER_ADDRESSES.push(_user);
+        _stake(_user, bound(id, 0.1e18, 1e18));
+    }
 
-        uint256 _amount = bound(id, 0.1e18, 1e18);
-
+    function _stake(address _user, uint256 _amount) private {
         deal(wstETH, _user, _amount);
 
         vm.startPrank(_user, _user);
@@ -159,7 +147,6 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
         vm.stopPrank();
 
         userHolding[_user] = stakingManager.getUserHolding(_user);
-
         investorsSet.add(_user);
         totalDeposited += _amount;
     }

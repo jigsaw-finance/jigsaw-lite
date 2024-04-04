@@ -96,29 +96,15 @@ contract StakingManagerInvariantTest_Unstake is Fixture {
 
     function setUp() external {
         init();
-        unstakeHandler = new UnstakeHandler(stakingManager);
+        unstakeHandler = new UnstakeHandler(stakingManager, 1);
         targetContract(address(unstakeHandler));
     }
 
-    /**
-     * Should assert that:
-     *      2. Withdraws are correct
-     */
-
-    // // Test that deposited amounts in Ion Pool and Staker contract are correct at all times
-    // function invariant_stakingManager_tokenInBalance_equals_tracked_deposits() external {
-    //     assertEq(staker.totalSupply(), stakeHandler.totalDeposited(), "Staker's totalSupply incorrect");
-    //     assertApproxEqAbs(getIonDeposits(), stakeHandler.totalDeposited(), 1000, "Ion's deposits incorrect");
-    // }
-
-    //2. Withdraws are correct
-    function invariant_stakingManager_withdraws_correct() external { }
-
-    // Utility functions
-
-    function getIonDeposits() private view returns (uint256 userDeposits) {
-        for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
-            userDeposits += ION_POOL.balanceOf(stakingManager.getUserHolding(USER_ADDRESSES[i]));
-        }
+    // Ensure withdraws are correct
+    function invariant_stakingManager_withdraws_correct() external view {
+        assertGt(unstakeHandler.ionTotalWithdrawn(), unstakeHandler.totalDeposited(), "Ion withdrawn amount incorrect");
+        assertEq(
+            unstakeHandler.stakerTotalWithdrawn(), unstakeHandler.totalDeposited(), "Staker withdrawn amount incorrect"
+        );
     }
 }
