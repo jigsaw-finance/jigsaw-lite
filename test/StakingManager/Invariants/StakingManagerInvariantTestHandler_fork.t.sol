@@ -123,7 +123,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     // Utility functions
     function _initAllUsers() private {
         for (uint256 i = 0; i < 1000; i++) {
-            USER_ADDRESSES[i] = vm.addr(uint256(keccak256(abi.encodePacked(i))));
+            USER_ADDRESSES.push(vm.addr(uint256(keccak256(abi.encodePacked(i)))));
 
             address _user = USER_ADDRESSES[i];
             uint256 _amount = bound(uint256(i), 0.1e18, 1e18);
