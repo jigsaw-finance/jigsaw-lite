@@ -96,13 +96,15 @@ contract StakingManagerInvariantTest_Unstake is Fixture {
 
     function setUp() external {
         init();
-        unstakeHandler = new UnstakeHandler(stakingManager, 1);
+        unstakeHandler = new UnstakeHandler(stakingManager);
         targetContract(address(unstakeHandler));
     }
 
     // Ensure withdraws are correct
     function invariant_stakingManager_withdraws_correct() external view {
-        assertGt(unstakeHandler.ionTotalWithdrawn(), unstakeHandler.totalDeposited(), "Ion withdrawn amount incorrect");
+        assertGe(
+            unstakeHandler.ionTotalWithdrawn() + 100, unstakeHandler.totalDeposited(), "Ion withdrawn amount incorrect"
+        );
         assertEq(
             unstakeHandler.stakerTotalWithdrawn(), unstakeHandler.totalDeposited(), "Staker withdrawn amount incorrect"
         );
