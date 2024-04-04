@@ -51,6 +51,12 @@ interface IStakerManager {
     event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
 
     /**
+     * @dev emitted when the holding implementation reference is updated.
+     * @param _newReference The address of the new implementation reference.
+     */
+    event HoldingImplementationReferenceUpdated(address indexed _newReference);
+
+    /**
      * @dev Address of holding implementation to be cloned from
      */
     function holdingImplementationReference() external view returns (address);
@@ -154,5 +160,5 @@ interface IStakerManager {
      * @param _user The address of the user.
      * @return the holding address.
      */
-    function _getUserHolding(address _user) external view returns (address);
+    function getUserHolding(address _user) external view returns (address);
 }
