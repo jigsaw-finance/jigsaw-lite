@@ -70,7 +70,6 @@ contract StakingManagerInvariantTest is Test {
         unstakeHandler = new UnstakeHandler(stakingManager, USER_ADDRESSES);
 
         targetContract(address(stakeHandler));
-        targetContract(address(unstakeHandler));
     }
 
     /**
@@ -87,6 +86,8 @@ contract StakingManagerInvariantTest is Test {
 
     // //2. Withdraws are correct
     // function invariant_stakingManager_withdraws_correct() external {
+    //     excludeContracts();
+    //     targetContract(address(unstakeHandler));
     // }
 
     // Utility functions

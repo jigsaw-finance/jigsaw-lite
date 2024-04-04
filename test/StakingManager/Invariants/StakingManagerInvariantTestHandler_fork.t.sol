@@ -106,7 +106,9 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
     // Unstake for a user
     function unstake(uint256 user_idx) external {
-        address user = pickUpUserFromInvestors(user_idx);
+        console.log("FUCKING LENGTH", investorsSet.length());
+        if (investorsSet.length() == 0) return;
+        address user = investorsSet.at(bound(user_idx, 0, investorsSet.length() - 1));
 
         uint256 stakerWithdrawAmount = staker.balanceOf(userHolding[user]);
         if (stakerWithdrawAmount == 0) return;
@@ -136,9 +138,5 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
             investorsSet.add(_user);
             totalDeposited += _amount;
         }
-    }
-
-    function pickUpUserFromInvestors(uint256 user_idx) internal view returns (address) {
-        return investorsSet.at(bound(user_idx, 0, investorsSet.length() - 1));
     }
 }
