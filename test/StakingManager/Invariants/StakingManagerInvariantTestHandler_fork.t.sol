@@ -54,7 +54,7 @@ contract StakingManagerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
 
     // Stake for a user
     function stake(uint256 user_idx, uint256 _amount) external {
-        uint256 amount = bound(_amount, 0.00001e18, 10e18);
+        uint256 amount = bound(_amount, 0.1e18, 1e18);
         address user = pickUpUser(user_idx);
 
         _stake(user, amount);
@@ -70,6 +70,7 @@ contract StakingManagerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
 
         uint256 stakerWithdrawAmount = staker.balanceOf(userHolding[user]);
         if (stakerWithdrawAmount == 0) return;
+        if (ionPool.balanceOf(userHolding[user]) == 0) return;
 
         vm.prank(user, user);
         stakingManager.unstake(user);

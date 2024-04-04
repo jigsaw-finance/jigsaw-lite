@@ -13,7 +13,7 @@ import { IIonPool } from "../../utils/IIonPool.sol";
 import { IStaker } from "../../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../../utils/IWhitelist.sol";
 
-import { StakingManagerInvariantTestHandler } from "./StakingManagerInvariantTestHadler_fork.t.sol";
+import { StakingManagerInvariantTestHandler } from "./StakingManagerInvariantTestHandler_fork.t.sol";
 
 IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
 
