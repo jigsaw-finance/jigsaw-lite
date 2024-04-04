@@ -190,9 +190,12 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
+        uint256 ionPoolBalance = IIonPool(ionPool).balanceOf(holding);
+        if (ionPoolBalance == 0) revert NothingToWithdrawFromIon(msg.sender);
+
         emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
-        IHolding(holding).unstake({ _to: _to, _amount: IIonPool(ionPool).balanceOf(holding) });
+        IHolding(holding).unstake({ _to: _to, _amount: ionPoolBalance });
         IStaker(staker).exit({ _user: holding, _to: _to });
     }
 

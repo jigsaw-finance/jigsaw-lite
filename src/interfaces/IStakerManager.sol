@@ -27,6 +27,11 @@ interface IStakerManager {
      */
     error PreLockupPeriodUnstaking();
 
+    /**
+     * @dev The operation failed because caller's holding's balance in Ion Pool is zero;
+     */
+    error NothingToWithdrawFromIon(address caller);
+
     // --- Events ---
     /**
      * @dev emitted when participant staked
