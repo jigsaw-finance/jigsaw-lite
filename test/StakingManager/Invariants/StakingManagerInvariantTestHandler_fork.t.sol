@@ -85,7 +85,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     uint256 public totalDeposited;
 
     uint256 public stakerTotalWithdrawn;
-    // uint256 public ionTotalWithdrawn;
+    uint256 public ionTotalWithdrawn;
 
     uint256 public totalRewardsAmount;
     uint256 public totalRewardsClaimed;
@@ -105,24 +105,25 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
     // Unstake for a user
     function unstake(uint256 user_idx) external {
-        console.log("FUCKING LENGTH", investorsSet.length());
-        if (investorsSet.length() == 0) return;
+        if (investorsSet.length() == 0) {
+            initRandomUser(user_idx);
+        }
         address user = investorsSet.at(bound(user_idx, 0, investorsSet.length() - 1));
 
         uint256 stakerWithdrawAmount = staker.balanceOf(userHolding[user]);
-        if (stakerWithdrawAmount == 0) return;
-        if (ionPool.balanceOf(userHolding[user]) == 0) return;
+        uint256 ionWithdrawAmount = ionPool.balanceOf(userHolding[user]);
 
         vm.prank(user, user);
         stakingManager.unstake(user);
 
         investorsSet.remove(user);
         stakerTotalWithdrawn += stakerWithdrawAmount;
+        ionTotalWithdrawn += ionWithdrawAmount;
     }
 
     // Utility functions
     function _initAllUsers() private {
-        for (uint256 i = 0; i < 1000; i++) {
+        for (uint256 i = 0; i < 2; i++) {
             USER_ADDRESSES.push(vm.addr(uint256(keccak256(abi.encodePacked(i)))));
 
             address _user = USER_ADDRESSES[i];
@@ -140,5 +141,26 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
             investorsSet.add(_user);
             totalDeposited += _amount;
         }
+    }
+
+    // Utility functions
+    function initRandomUser(uint256 id) private returns (address _user) {
+        _user = vm.addr(uint256(keccak256(abi.encodePacked(id))));
+
+        USER_ADDRESSES.push(_user);
+
+        uint256 _amount = bound(id, 0.1e18, 1e18);
+
+        deal(wstETH, _user, _amount);
+
+        vm.startPrank(_user, _user);
+        IERC20(wstETH).approve(address(stakingManager), _amount);
+        stakingManager.stake(_amount);
+        vm.stopPrank();
+
+        userHolding[_user] = stakingManager.getUserHolding(_user);
+
+        investorsSet.add(_user);
+        totalDeposited += _amount;
     }
 }
