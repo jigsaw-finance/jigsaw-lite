@@ -13,7 +13,8 @@ import { IIonPool } from "../../utils/IIonPool.sol";
 import { IStaker } from "../../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../../utils/IWhitelist.sol";
 
-import { StakingManagerInvariantTestHandler } from "./StakingManagerInvariantTestHandler_fork.t.sol";
+import { StakeHandler } from "./StakingManagerInvariantTestHandler_fork.t.sol";
+import { UnstakeHandler } from "./StakingManagerInvariantTestHandler_fork.t.sol";
 
 IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
 
@@ -28,7 +29,8 @@ contract StakingManagerInvariantTest is Test {
     StakingManager internal stakingManager;
     IStaker internal staker;
 
-    StakingManagerInvariantTestHandler internal handler;
+    StakeHandler internal stakeHandler;
+    UnstakeHandler internal unstakeHandler;
 
     address[] public USER_ADDRESSES = [
         address(uint160(uint256(keccak256("user1")))),
@@ -64,33 +66,30 @@ contract StakingManagerInvariantTest is Test {
         IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
         vm.stopPrank();
 
-        handler = new StakingManagerInvariantTestHandler(stakingManager, USER_ADDRESSES);
-        targetContract(address(handler));
+        stakeHandler = new StakeHandler(stakingManager, USER_ADDRESSES);
+        unstakeHandler = new UnstakeHandler(stakingManager, USER_ADDRESSES);
+
+        targetContract(address(stakeHandler));
+        targetContract(address(unstakeHandler));
     }
 
     /**
      * Should assert that:
      *      1. Deposited to Staker == deposited to ION
-     *      2. Users can withdraw more then they deposited
-     *      3. Every user has holding?
+     *      2. Withdraws are correct
      */
 
     // Test that deposited amounts in Ion Pool and Staker contract are correct at all times
-    function invariant_stakingManager_tokenInBalance_equals_tracked_deposits() external view {
-        // console.log(handler.totalDeposited(), "Deposited");
-        // console.log(handler.stakerTotalWithdrawn(), "Withdrawn");
-
-        // uint256 expectedAmount = handler.totalDeposited() - handler.stakerTotalWithdrawn();
-
-        // assertEq(staker.totalSupply(), expectedAmount, "Staker's totalSupply incorrect");
-
-        // assertEq(getIonDeposits(), expectedAmount);
-        // assertApproxEqRel(a, b, 1e18);
-
-        // assertApproxEqAbs(getIonDeposits(), expectedAmount, 10, "Ion's deposits incorrect");
-
-        // assertApproxEqRel(getIonDeposits(), expectedAmount, 0.01e18, "Ion's deposits incorrect");
+    function invariant_stakingManager_tokenInBalance_equals_tracked_deposits() external {
+        assertEq(staker.totalSupply(), stakeHandler.totalDeposited(), "Staker's totalSupply incorrect");
+        assertApproxEqAbs(getIonDeposits(), stakeHandler.totalDeposited(), 1000, "Ion's deposits incorrect");
     }
+
+    // //2. Withdraws are correct
+    // function invariant_stakingManager_withdraws_correct() external {
+    // }
+
+    // Utility functions
 
     function getIonDeposits() private view returns (uint256 userDeposits) {
         for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
