@@ -22,8 +22,6 @@ contract StakingManagerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
 
     address internal ADMIN;
     address internal wstETH;
-
-    address internal tokenIn;
     address internal rewardToken;
     uint256 internal rewardsDuration;
 
@@ -31,99 +29,90 @@ contract StakingManagerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
     IStaker internal staker;
     IIonPool internal ionPool;
 
-    address[] public USER_ADDRESSES = [
-        address(uint160(uint256(keccak256("user1")))),
-        address(uint160(uint256(keccak256("user2")))),
-        address(uint160(uint256(keccak256("user3")))),
-        address(uint160(uint256(keccak256("user4")))),
-        address(uint160(uint256(keccak256("user5"))))
-    ];
+    address[] public USER_ADDRESSES;
+    mapping(address => address) userHolding;
 
     EnumerableSet.AddressSet internal investorsSet;
 
     uint256 public totalDeposited;
 
     uint256 public stakerTotalWithdrawn;
-    uint256 public ionTotalWithdrawn;
+    // uint256 public ionTotalWithdrawn;
 
     uint256 public totalRewardsAmount;
     uint256 public totalRewardsClaimed;
 
-    constructor(StakingManager _stakingManager) {
+    constructor(StakingManager _stakingManager, address[] memory _users) {
         stakingManager = _stakingManager;
         ADMIN = stakingManager.defaultAdmin();
         staker = IStaker(stakingManager.staker());
         ionPool = IIonPool(stakingManager.ionPool());
-        tokenIn = stakingManager.underlyingAsset();
+        wstETH = stakingManager.underlyingAsset();
         rewardToken = stakingManager.rewardToken();
+        USER_ADDRESSES = _users;
     }
 
     // Stake for a user
-    function stake(uint256 amount, uint256 user_idx) external {
+    function stake(uint256 user_idx, uint256 _amount) external {
+        uint256 amount = bound(_amount, 0.00001e18, 10e18);
         address user = pickUpUser(user_idx);
-        amount = bound(amount, 1, 1000e18);
 
-        stakingManager.stake(amount);
+        _stake(user, amount);
 
         investorsSet.add(user);
         totalDeposited += amount;
     }
 
     // Unstake for a user
-    function unstake(uint256 user_idx) external {
+    function unstake(uint256 user_idx) external timeMachine {
         address user = pickUpUserFromInvestors(user_idx);
         if (user == address(0)) return;
 
-        uint256 stakerWithdrawAmount = staker.balanceOf(user);
-        uint256 ionWithdrawAmount = ionPool.balanceOf(user);
+        uint256 stakerWithdrawAmount = staker.balanceOf(userHolding[user]);
+        if (stakerWithdrawAmount == 0) return;
 
         vm.prank(user, user);
         stakingManager.unstake(user);
 
         investorsSet.remove(user);
         stakerTotalWithdrawn += stakerWithdrawAmount;
-        ionTotalWithdrawn += ionWithdrawAmount;
-    }
-
-    // Owner's handlers
-
-    function addRewards(uint256 _rewards) external {
-        _rewards = bound(_rewards, 1e18, 1000e18);
-
-        if (investorsSet.length() == 0) return;
-
-        deal(rewardToken, address(staker), _rewards);
-        vm.prank(ADMIN, ADMIN);
-        staker.addRewards(_rewards);
-
-        totalRewardsAmount += _rewards;
     }
 
     // Utility functions
 
-    function pickUpUser(uint256 user_idx) public view returns (address) {
-        user_idx = user_idx % USER_ADDRESSES.length;
-        return USER_ADDRESSES[user_idx];
+    function pickUpUser(uint256 user_idx) internal view returns (address) {
+        // return USER_ADDRESSES[user_idx % USER_ADDRESSES.length];
+        return USER_ADDRESSES[bound(user_idx, 0, USER_ADDRESSES.length - 1)];
     }
 
-    function pickUpUserFromInvestors(uint256 user_idx) public view returns (address) {
+    function pickUpUserFromInvestors(uint256 user_idx) internal view returns (address) {
         uint256 investorsNumber = investorsSet.length();
         if (investorsNumber == 0) return address(0);
-
-        user_idx = bound(user_idx, 0, investorsNumber - 1);
-
-        return investorsSet.at(user_idx);
+        return investorsSet.at(bound(user_idx, 0, investorsNumber - 1));
     }
 
-    function getUserRewards() public view returns (uint256 userRewards) {
-        for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
-            userRewards += staker.earned(USER_ADDRESSES[i]);
-        }
+    function _stake(address _user, uint256 _amount) internal {
+        deal(wstETH, _user, _amount);
+
+        vm.startPrank(_user, _user);
+        IERC20(wstETH).approve(address(stakingManager), _amount);
+        stakingManager.stake(_amount);
+        vm.stopPrank();
+
+        userHolding[_user] = stakingManager.getUserHolding(_user);
     }
 
-    function getIonDeposits() public view returns (uint256 userDeposits) {
-        for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
-            userDeposits += ionPool.balanceOf(USER_ADDRESSES[i]);
-        }
+    // Modifiers
+
+    // Change block.timestamp to allow unstaking
+    modifier timeMachine() {
+        uint256 currentTimestamp = block.timestamp;
+        vm.warp(
+            currentTimestamp < stakingManager.lockupExpirationDate()
+                ? stakingManager.lockupExpirationDate() + 1
+                : currentTimestamp
+        );
+        _;
+        // vm.warp(currentTimestamp);
     }
 }

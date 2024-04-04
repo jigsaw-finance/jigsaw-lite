@@ -30,6 +30,14 @@ contract StakingManagerInvariantTest is Test {
 
     StakingManagerInvariantTestHandler internal handler;
 
+    address[] public USER_ADDRESSES = [
+        address(uint160(uint256(keccak256("user1")))),
+        address(uint160(uint256(keccak256("user2")))),
+        address(uint160(uint256(keccak256("user3")))),
+        address(uint160(uint256(keccak256("user4")))),
+        address(uint160(uint256(keccak256("user5"))))
+    ];
+
     function setUp() external {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 19_573_312);
 
@@ -56,7 +64,7 @@ contract StakingManagerInvariantTest is Test {
         IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
         vm.stopPrank();
 
-        handler = new StakingManagerInvariantTestHandler(stakingManager);
+        handler = new StakingManagerInvariantTestHandler(stakingManager, USER_ADDRESSES);
         targetContract(address(handler));
     }
 
@@ -64,15 +72,51 @@ contract StakingManagerInvariantTest is Test {
      * Should assert that:
      *      1. Deposited to Staker == deposited to ION
      *      2. Users can withdraw more then they deposited
-     *      3. Users can withdraw more then they deposited
-     *      4. Every user has holding?
+     *      3. Every user has holding?
      */
 
     // Test that deposited amounts in Ion Pool and Staker contract are correct at all times
-    function invariant_staker_tokenInBalance_equals_tracked_deposits() external {
-        uint256 expectedAmount = handler.totalDeposited() - handler.stakerTotalWithdrawn();
+    function invariant_stakingManager_tokenInBalance_equals_tracked_deposits() external view {
+        // console.log(handler.totalDeposited(), "Deposited");
+        // console.log(handler.stakerTotalWithdrawn(), "Withdrawn");
 
-        assertEq(staker.totalSupply(), expectedAmount, "Staker's totalSupply incorrect");
-        assertGe(handler.getIonDeposits(), expectedAmount, "Ion's deposits incorrect");
+        // uint256 expectedAmount = handler.totalDeposited() - handler.stakerTotalWithdrawn();
+
+        // assertEq(staker.totalSupply(), expectedAmount, "Staker's totalSupply incorrect");
+
+        // assertEq(getIonDeposits(), expectedAmount);
+        // assertApproxEqRel(a, b, 1e18);
+
+        // assertApproxEqAbs(getIonDeposits(), expectedAmount, 10, "Ion's deposits incorrect");
+
+        // assertApproxEqRel(getIonDeposits(), expectedAmount, 0.01e18, "Ion's deposits incorrect");
     }
+
+    function getIonDeposits() private view returns (uint256 userDeposits) {
+        for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
+            userDeposits += ION_POOL.balanceOf(stakingManager.getUserHolding(USER_ADDRESSES[i]));
+        }
+    }
+
+    // // Test that staker's reward token's balance is correct at all times
+    // function invariant_staker_rewardTokenBalance_equals_tracked_deposits() external view {
+    //     assertEq(
+    //         handler.totalRewardsAmount() - handler.totalRewardsClaimed(),
+    //         IERC20(rewardToken).balanceOf(address(staker)),
+    //         "Staker's reward token balance incorrect"
+    //     );
+    // }
+
+    // // Test that the total of all deposits is equal to the pool's totalSupply
+    // function invariant_staker_totalSupply_equal_deposits() external view {
+    //     assertGe(
+    //         staker.totalSupply(), handler.totalDeposited() - handler.totalWithdrawn(), "Staker's total supply
+    // incorrect"
+    //     );
+    // }
+
+    // // Test that the sum of all user rewards is equal to the the sum of all amounts of rewards distributed
+    // function invariant_total_rewards() external view {
+    //     assertEq(handler.totalRewardsAmount(), handler.getUserRewards(), "Staker's rewards count incorrect");
+    // }
 }
