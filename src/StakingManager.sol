@@ -44,7 +44,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     /**
      * @dev Address of holding implementation to be cloned from
      */
-    address public immutable override holdingImplementationReference;
+    address public override holdingImplementationReference;
 
     /**
      * @dev Address of the underlying asset used for staking.
@@ -259,13 +259,34 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * - Caller must have the DEFAULT_ADMIN_ROLE.
      *
      * Emits:
-     * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated
+     * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated.
      *
      * @param _newDate The new lockup expiration date to be set.
      */
     function setLockupExpirationDate(uint256 _newDate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
         lockupExpirationDate = _newDate;
+    }
+
+    /**
+     * @dev Allows the default admin role to set a new holdingImplementationReference.
+     *
+     * Requirements:
+     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     *
+     * Emits:
+     * - `HoldingImplementationReferenceUpdated` event indicating that holding implementation reference
+     * has been updated.
+     *
+     * @param _newReference The address of the new implementation reference.
+     */
+    function setHoldingImplementationReference(address _newReference)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        validAddress(_newReference)
+    {
+        emit HoldingImplementationReferenceUpdated(_newReference);
+        holdingImplementationReference = _newReference;
     }
 
     // --- Getters ---
@@ -275,7 +296,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @param _user The address of the user.
      * @return the holding address.
      */
-    function _getUserHolding(address _user) external view override returns (address) {
+    function getUserHolding(address _user) external view override returns (address) {
         return userHolding[_user];
     }
 
