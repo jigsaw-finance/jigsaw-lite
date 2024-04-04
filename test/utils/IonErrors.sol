@@ -43,4 +43,12 @@ contract Errors {
     error InvalidZeroLiquidityRegionSwap();
     error CallbackOnlyCallableByPool(address unauthorizedCaller);
     error OutputAmountNotReceived(uint256 amountReceived, uint256 amountRequired);
+
+    error InvalidBurnAmount();
+    error InvalidMintAmount();
+    error InvalidUnderlyingAddress();
+    error InvalidTreasuryAddress();
+    error InvalidSender(address sender);
+    error InvalidReceiver(address receiver);
+    error InsufficientBalance(address account, uint256 balance, uint256 needed);
 }
