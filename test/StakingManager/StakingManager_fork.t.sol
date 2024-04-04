@@ -151,6 +151,6 @@ contract StakingManagerForkTest is Test {
         stakingManager.stake(_amount);
         vm.stopPrank();
 
-        return stakingManager._getUserHolding(_user);
+        return stakingManager.getUserHolding(_user);
     }
 }
