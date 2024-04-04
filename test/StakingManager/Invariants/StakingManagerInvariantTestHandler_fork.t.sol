@@ -90,14 +90,13 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     uint256 public totalRewardsAmount;
     uint256 public totalRewardsClaimed;
 
-    constructor(StakingManager _stakingManager, address[] memory _users) {
+    constructor(StakingManager _stakingManager) {
         stakingManager = _stakingManager;
         ADMIN = stakingManager.defaultAdmin();
         staker = IStaker(stakingManager.staker());
         ionPool = IIonPool(stakingManager.ionPool());
         wstETH = stakingManager.underlyingAsset();
         rewardToken = stakingManager.rewardToken();
-        USER_ADDRESSES = _users;
 
         _initAllUsers();
 
@@ -123,9 +122,12 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
     // Utility functions
     function _initAllUsers() private {
-        for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
+        for (uint256 i = 0; i < 1000; i++) {
+            USER_ADDRESSES[i] = vm.addr(uint256(keccak256(abi.encodePacked(i))));
+
             address _user = USER_ADDRESSES[i];
-            uint256 _amount = bound(uint256(18_937_232), 0.1e18, 1e18);
+            uint256 _amount = bound(uint256(i), 0.1e18, 1e18);
+
             deal(wstETH, _user, _amount);
 
             vm.startPrank(_user, _user);
