@@ -74,4 +74,4 @@ mt test: && _timer
 	forge test -vvvvvv --match-test {{test}}
 
 mp verbosity path: && _timer
-	forge test -{{verbosity}} --match-path test/foundry/{{path}}
+	forge test -{{verbosity}} --match-path test/{{path}}

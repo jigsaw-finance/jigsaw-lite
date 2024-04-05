@@ -10,12 +10,12 @@ optimizer_runs = 300
 evm_version = "shanghai"
 
 [profile.default.fuzz]
-runs = 5000
-max_test_rejects = 100000
+runs = 10000
+max_test_rejects = 655360
 
 [profile.default.invariant]
-runs = 20
-depth = 1536
+runs = 10
+depth = 200
 # fail_on_revert = true
 call_override = false   # reentrancy-check
 

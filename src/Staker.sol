@@ -142,6 +142,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         validAddress(_tokenIn)
         validAddress(_rewardToken)
         validAddress(_stakingManager)
+        validAmount(_rewardsDuration)
         Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
@@ -178,11 +179,10 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
             rewardRate = (_amount + leftover) / duration;
         }
 
-        uint256 rate = rewardRate;
-        if (rate == 0) revert RewardAmountTooSmall();
+        if (rewardRate == 0) revert RewardAmountTooSmall();
 
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
-        if (rate > (balance / duration)) revert RewardRateTooBig();
+        if (rewardRate > (balance / duration)) revert RewardRateTooBig();
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + duration;

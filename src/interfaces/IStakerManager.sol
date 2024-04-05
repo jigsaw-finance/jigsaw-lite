@@ -27,6 +27,11 @@ interface IStakerManager {
      */
     error PreLockupPeriodUnstaking();
 
+    /**
+     * @dev The operation failed because caller's holding's balance in Ion Pool is zero;
+     */
+    error NothingToWithdrawFromIon(address caller);
+
     // --- Events ---
     /**
      * @dev emitted when participant staked
@@ -44,6 +49,19 @@ interface IStakerManager {
     event HoldingCreated(address indexed user, address indexed holdingAddress);
 
     /**
+     * @dev emitted when the expiration date of a lockup is updated.
+     * @param oldDate The previous expiration date of the lockup.
+     * @param newDate The new expiration date of the lockup.
+     */
+    event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
+
+    /**
+     * @dev emitted when the holding implementation reference is updated.
+     * @param _newReference The address of the new implementation reference.
+     */
+    event HoldingImplementationReferenceUpdated(address indexed _newReference);
+
+    /**
      * @dev Address of holding implementation to be cloned from
      */
     function holdingImplementationReference() external view returns (address);
@@ -52,6 +70,11 @@ interface IStakerManager {
      * @dev Address of the underlying asset used for staking.
      */
     function underlyingAsset() external view returns (address);
+
+    /**
+     * @dev Address of the reward token distributed for staking.
+     */
+    function rewardToken() external view returns (address);
 
     /**
      * @dev Address of the Ion Pool contract.
@@ -142,5 +165,5 @@ interface IStakerManager {
      * @param _user The address of the user.
      * @return the holding address.
      */
-    function _getUserHolding(address _user) external view returns (address);
+    function getUserHolding(address _user) external view returns (address);
 }

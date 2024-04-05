@@ -28,6 +28,8 @@ import { IStaker } from "./interfaces/IStaker.sol";
  *
  * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `AccessControlDefaultAdminRules`.
  *
+ * @author Hovooo (@hovooo)
+ *
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */
 contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
@@ -44,12 +46,17 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     /**
      * @dev Address of holding implementation to be cloned from
      */
-    address public immutable override holdingImplementationReference;
+    address public override holdingImplementationReference;
 
     /**
      * @dev Address of the underlying asset used for staking.
      */
     address public immutable override underlyingAsset;
+
+    /**
+     * @dev Address of the reward token distributed for staking.
+     */
+    address public immutable override rewardToken;
 
     /**
      * @dev Address of the Ion Pool contract.
@@ -65,9 +72,10 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @dev Represents the expiration date for the staking lockup period.
      * After this date, staked funds can be withdrawn. If not withdrawn will continue to
      * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
-    uint256 public immutable override lockupExpirationDate;
+    uint256 public override lockupExpirationDate;
 
     // --- Modifiers ---
 
@@ -112,6 +120,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         validAmount(_rewardsDuration)
     {
         underlyingAsset = _underlyingAsset;
+        rewardToken = _rewardToken;
         ionPool = _ionPool;
         staker = address(
             new Staker({
@@ -169,6 +178,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @notice Withdraws a all staked assets.
+     *
      * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated rewards
      * from the Ion Pool contract to the designated recipient `_to`.
      *
@@ -182,9 +192,12 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
         address holding = userHolding[msg.sender];
 
+        uint256 ionPoolBalance = IIonPool(ionPool).balanceOf(holding);
+        if (ionPoolBalance == 0) revert NothingToWithdrawFromIon(msg.sender);
+
         emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
-        IHolding(holding).unstake({ _to: _to, _amount: IIonPool(ionPool).balanceOf(holding) });
+        IHolding(holding).unstake({ _to: _to, _amount: ionPoolBalance });
         IStaker(staker).exit({ _user: holding, _to: _to });
     }
 
@@ -192,10 +205,13 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @notice Invokes a generic call on a holding contract.
+     *
      * @dev This function is restricted to be called only by GENERIC_CALLER role
+     *
      * @param _holding The address of the holding contract where the call is invoked.
      * @param _contract The external contract being called by the holding contract.
      * @param _call The call data.
+     *
      * @return success Indicates whether the call was successful or not.
      * @return result Data obtained from the external call.
      */
@@ -241,6 +257,43 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         _beginDefaultAdminTransfer(newAdmin);
     }
 
+    /**
+     * @dev Allows the default admin role to set a new lockup expiration date.
+     *
+     * Requirements:
+     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     *
+     * Emits:
+     * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated.
+     *
+     * @param _newDate The new lockup expiration date to be set.
+     */
+    function setLockupExpirationDate(uint256 _newDate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
+        lockupExpirationDate = _newDate;
+    }
+
+    /**
+     * @dev Allows the default admin role to set a new holdingImplementationReference.
+     *
+     * Requirements:
+     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     *
+     * Emits:
+     * - `HoldingImplementationReferenceUpdated` event indicating that holding implementation reference
+     * has been updated.
+     *
+     * @param _newReference The address of the new implementation reference.
+     */
+    function setHoldingImplementationReference(address _newReference)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        validAddress(_newReference)
+    {
+        emit HoldingImplementationReferenceUpdated(_newReference);
+        holdingImplementationReference = _newReference;
+    }
+
     // --- Getters ---
 
     /**
@@ -248,7 +301,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @param _user The address of the user.
      * @return the holding address.
      */
-    function _getUserHolding(address _user) external view override returns (address) {
+    function getUserHolding(address _user) external view override returns (address) {
         return userHolding[_user];
     }
 
