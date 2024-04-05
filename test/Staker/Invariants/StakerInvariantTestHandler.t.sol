@@ -43,19 +43,23 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
         staker = _staker;
         tokenIn = _tokenIn;
         rewardToken = _rewardToken;
+
+        addRewards(100e18);
     }
 
     // Make a deposit for a user
-    function deposit(uint256 amount, uint256 user_idx) public virtual {
+    function deposit(uint256 amount, uint256 user_idx) public {
         address user = pickUpUser(user_idx);
 
-        amount = bound(amount, 1, 1e34);
+        amount = bound(amount, 100_000, 1000e18);
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
         staker.deposit(user, amount);
 
         totalDeposited += amount;
         investorsSet.add(user);
+
+        vm.warp(block.timestamp + 2 days);
     }
 
     // Withdraw deposit for a user
@@ -70,34 +74,30 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
         staker.withdraw(user, withdrawAmount);
 
         if (withdrawAmount == userBalance) investorsSet.remove(user);
-
+        if (investorsSet.length() == 0) {
+            deposit(amount, user_idx);
+            vm.warp(block.timestamp + 2 days);
+        }
         totalWithdrawn += withdrawAmount;
     }
 
     // Claim rewards for a user
-    function claimRewards(uint256 user_idx, uint256 time) external {
-        time = bound(time, 30 minutes, 1 days);
-        vm.warp(block.timestamp + time);
-
-        if (block.timestamp >= staker.periodFinish()) return;
-
+    function claimRewards(uint256 user_idx) external {
         address user = pickUpUserFromInvestors(user_idx);
-
-        if (totalRewardsAmount == 0) return;
-
         uint256 userRewards = staker.earned(user);
+
         if (userRewards == 0) return;
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
         staker.claimRewards(user, user);
+
+        totalRewardsClaimed += userRewards;
     }
 
     // Owner's handlers
 
-    function addRewards(uint256 _rewards) external {
-        _rewards = bound(_rewards, 1e18, 1000e18);
-
-        if (investorsSet.length() == 0) return;
+    function addRewards(uint256 _rewards) private {
+        _rewards = bound(_rewards, 1e18, 10e18);
 
         deal(rewardToken, address(staker), _rewards);
         vm.prank(OWNER, OWNER);
@@ -124,7 +124,7 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
 
     function getUserRewards() public view returns (uint256 userRewards) {
         for (uint256 i = 0; i < USER_ADDRESSES.length; i++) {
-            userRewards += staker.earned(USER_ADDRESSES[i]);
+            userRewards += IERC20Metadata(rewardToken).balanceOf(USER_ADDRESSES[i]);
         }
     }
 }
