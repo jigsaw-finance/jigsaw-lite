@@ -54,12 +54,14 @@ contract StakerInvariantTest is Test {
     // Test that the total of all deposits is equal to the pool's totalSupply
     function invariant_staker_totalSupply_equal_deposits() external view {
         assertGe(
-            staker.totalSupply(), handler.totalDeposited() - handler.totalWithdrawn(), "Staker's total supply incorrect"
+            staker.totalSupply(),
+            handler.totalDeposited() - handler.totalWithdrawn(),
+            "Staker's total supply is incorrect"
         );
     }
 
     // Test that the sum of all user rewards is equal to the the sum of all amounts of rewards distributed
     function invariant_total_rewards() external view {
-        assertEq(handler.totalRewardsAmount(), handler.getUserRewards(), "Staker's rewards count incorrect");
+        assertEq(handler.totalRewardsClaimed(), handler.getUserRewards(), "Rewards distributed are incorrect");
     }
 }
