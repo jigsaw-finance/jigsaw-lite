@@ -11,7 +11,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import { StakingManager } from "../../../src/StakingManager.sol";
-import { jPoints } from "../../../src/jPoints.sol";
+import { JigsawPoints } from "../../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../../utils/IIonPool.sol";
 import { IStaker } from "../../../src/interfaces/IStaker.sol";
@@ -83,6 +83,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
     EnumerableSet.AddressSet internal investorsSet;
 
     uint256 public totalDeposited;
+    uint256 public ionTotalDeposited;
 
     uint256 public stakerTotalWithdrawn;
     uint256 public ionTotalWithdrawn;
@@ -116,7 +117,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
         investorsSet.remove(user);
         stakerTotalWithdrawn += stakerWithdrawAmount;
-        ionTotalWithdrawn += ionWithdrawAmount;
+        ionTotalWithdrawn += ionWithdrawAmount + 1;
     }
 
     // Utility functions
@@ -136,6 +137,11 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
         userHolding[_user] = stakingManager.getUserHolding(_user);
         investorsSet.add(_user);
+
         totalDeposited += _amount;
+        ionTotalDeposited += ionPool.balanceOf(userHolding[_user]);
+
+        // fast forward random amount to generate some yield
+        vm.warp(stakingManager.lockupExpirationDate() + bound(_amount, 1 days, 60 days));
     }
 }

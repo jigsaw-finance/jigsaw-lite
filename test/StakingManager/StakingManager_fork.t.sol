@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { StakingManager } from "../../src/StakingManager.sol";
-import { jPoints } from "../../src/jPoints.sol";
+import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../utils/IIonPool.sol";
 import { IStaker } from "../../src/interfaces/IStaker.sol";
@@ -18,6 +18,7 @@ IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78
 contract StakingManagerForkTest is Test {
     error PreLockupPeriodUnstaking();
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
+    error NothingToWithdrawFromIon(address caller);
 
     uint256 constant STAKING_SUPPLY_LIMIT = 1e34;
     uint256 constant rewardsDuration = 365 days;
@@ -26,14 +27,14 @@ contract StakingManagerForkTest is Test {
     address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
-    jPoints rewardToken;
+    JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
 
-        rewardToken = new jPoints({ _initialOwner: ADMIN, _limit: 1e6 });
+        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
@@ -57,7 +58,8 @@ contract StakingManagerForkTest is Test {
         vm.stopPrank();
     }
 
-    function test_stake_when_newUser() public {
+    // Tests if stake and unstake work correctly in happy case
+    function test_happyPath() public {
         address _user = USER;
         uint256 _amount = 1e18;
 
@@ -84,7 +86,7 @@ contract StakingManagerForkTest is Test {
         assertGt(
             jPoinsRewardsBalanceAfterYear,
             jPoinsRewardsBalanceAfterStake,
-            "Wrong jPoints balance in Staker after a year"
+            "Wrong JigsawPoints balance in Staker after a year"
         );
 
         vm.prank(_user, _user);
@@ -92,7 +94,9 @@ contract StakingManagerForkTest is Test {
 
         assertEq(IERC20(wstETH).balanceOf(_user), ionBalanceAfterYear, "User didn't receive wstETH after unstake");
         assertEq(
-            rewardToken.balanceOf(_user), jPoinsRewardsBalanceAfterYear, "User didn't receive jPoints after unstake"
+            rewardToken.balanceOf(_user),
+            jPoinsRewardsBalanceAfterYear,
+            "User didn't receive JigsawPoints after unstake"
         );
         assertEq(staker.balanceOf(holding), 0, "Wrong balance in Staker after unstake");
         assertEq(
@@ -101,6 +105,15 @@ contract StakingManagerForkTest is Test {
             "Wrong rewards paid in Staker after unstake"
         );
         assertEq(staker.rewards(holding), 0, "Wrong rewards in Staker after unstake");
+    }
+
+    // Tests if unstake reverts correctly when there is nothing to withdraw
+    function test_unstake_when_NothingToWithdraw() public {
+        vm.warp(block.timestamp + rewardsDuration);
+
+        vm.prank(address(0), address(0));
+        vm.expectRevert(abi.encodeWithSelector(NothingToWithdrawFromIon.selector, address(0)));
+        stakingManager.unstake(address(1));
     }
 
     // Tests if invokeHolding reverts correctly when unauthorized

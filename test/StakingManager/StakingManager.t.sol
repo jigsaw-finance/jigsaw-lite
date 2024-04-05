@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { StakingManager } from "../../src/StakingManager.sol";
-import { jPoints } from "../../src/jPoints.sol";
+import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../utils/IIonPool.sol";
 import { IStaker } from "../../src/interfaces/IStaker.sol";
@@ -18,9 +18,12 @@ IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78
 contract StakingManagerForkTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error RenouncingDefaultAdminRoleProhibited();
+    error InvalidAddress();
 
     event Paused(address account);
     event Unpaused(address account);
+    event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
+    event HoldingImplementationReferenceUpdated(address indexed _newReference);
 
     uint256 constant rewardsDuration = 365 days;
 
@@ -28,12 +31,12 @@ contract StakingManagerForkTest is Test {
     address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
-    jPoints rewardToken;
+    JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
 
     function setUp() public {
-        rewardToken = new jPoints({ _initialOwner: ADMIN, _limit: 1e6 });
+        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
@@ -113,5 +116,49 @@ contract StakingManagerForkTest is Test {
         stakingManager.acceptDefaultAdminTransfer();
 
         vm.assertEq(stakingManager.defaultAdmin(), newAdmin, "Incorrect new admin");
+    }
+
+    function test_setLockupExpirationDate_when_unauthorized(address _caller) public {
+        vm.assume(_caller != ADMIN);
+        vm.prank(_caller, _caller);
+        vm.expectRevert();
+        stakingManager.setLockupExpirationDate(block.timestamp);
+    }
+
+    function test_setLockupExpirationDate_when_authorized(uint256 _days) public {
+        uint256 newDate = block.timestamp + bound(_days, 1 days, 365 days);
+
+        vm.expectEmit();
+        emit LockupExpirationDateUpdated(stakingManager.lockupExpirationDate(), newDate);
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.setLockupExpirationDate(newDate);
+
+        assertEq(stakingManager.lockupExpirationDate(), newDate, "New lockupExpirationDate incorrect");
+    }
+
+    function test_setHoldingImplementationReference_when_unauthorized(address _caller) public {
+        vm.assume(_caller != ADMIN);
+        vm.prank(_caller, _caller);
+        vm.expectRevert();
+        stakingManager.setHoldingImplementationReference(address(1));
+    }
+
+    function test_setHoldingImplementationReference_when_invalidImplementationAddress() public {
+        vm.prank(ADMIN, ADMIN);
+        vm.expectRevert(InvalidAddress.selector);
+        stakingManager.setHoldingImplementationReference(address(0));
+    }
+
+    function test_setHoldingImplementationReference_when_authorized(address _newRef) public {
+        vm.assume(_newRef != address(0));
+
+        vm.expectEmit();
+        emit HoldingImplementationReferenceUpdated(_newRef);
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.setHoldingImplementationReference(_newRef);
+
+        assertEq(
+            stakingManager.holdingImplementationReference(), _newRef, "New holdingImplementationReference incorrect"
+        );
     }
 }

@@ -7,7 +7,7 @@ import "forge-std/console.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { StakingManager } from "../../../src/StakingManager.sol";
-import { jPoints } from "../../../src/jPoints.sol";
+import { JigsawPoints } from "../../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../../utils/IIonPool.sol";
 import { IStaker } from "../../../src/interfaces/IStaker.sol";
@@ -22,7 +22,7 @@ abstract contract Fixture is Test {
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     uint256 constant rewardsDuration = 365 days;
     address internal tokenIn;
-    jPoints rewardToken;
+    JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
 
@@ -42,7 +42,7 @@ abstract contract Fixture is Test {
     function init() internal {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 19_573_312);
 
-        rewardToken = new jPoints({ _initialOwner: ADMIN, _limit: 1e6 });
+        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
@@ -103,7 +103,7 @@ contract StakingManagerInvariantTest_Unstake is Fixture {
     // Ensure withdraws are correct
     function invariant_stakingManager_withdraws_correct() external view {
         assertGe(
-            unstakeHandler.ionTotalWithdrawn() + 100, unstakeHandler.totalDeposited(), "Ion withdrawn amount incorrect"
+            unstakeHandler.ionTotalWithdrawn(), unstakeHandler.ionTotalDeposited(), "Ion withdrawn amount incorrect"
         );
         assertEq(
             unstakeHandler.stakerTotalWithdrawn(), unstakeHandler.totalDeposited(), "Staker withdrawn amount incorrect"
