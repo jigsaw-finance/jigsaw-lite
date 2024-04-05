@@ -1,5 +1,5 @@
 
-# Jigsaw
+# Jigsaw lite
 
 [![test](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml/badge.svg)](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/groksmith/jigsaw-lite/blob/main/LICENSE)
