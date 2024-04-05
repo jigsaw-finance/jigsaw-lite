@@ -9,6 +9,24 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { IHolding } from "./interfaces/IHolding.sol";
 import { IIonPool } from "./interfaces/IIonPool.sol";
 
+/**
+ * @title Holding Contract
+ *
+ * @dev This contract serves as the implementation for clones used in StakingManager Contract.
+ *
+ * This contract is responsible for managing staking operations within the Jigsaw lite protocol.
+ * Stakers can deposit tokens into the Ion Pool and withdraw them on behalf of the Holding.
+ * Additionally, the contract allows for executing generic calls to interact with other contracts,
+ * with restrictions to ensure security and integrity of the protocol.
+ *
+ * This contract inherits the following:
+ * - ReentrancyGuard: A contract module that helps prevent reentrancy attacks by utilizing mutex locks.
+ * - Initializable: A contract module that provides a mechanism for initializing contracts post-deployment.
+ *
+ * This contract implements the IHolding interface, defining the functions required by the Jigsaw protocol.
+ *
+ * @author Hovooo (@hovooo)
+ */
 contract Holding is IHolding, ReentrancyGuard, Initializable {
     using SafeERC20 for IERC20;
 

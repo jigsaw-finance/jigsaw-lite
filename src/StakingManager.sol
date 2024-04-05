@@ -28,6 +28,8 @@ import { IStaker } from "./interfaces/IStaker.sol";
  *
  * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `AccessControlDefaultAdminRules`.
  *
+ * @author Hovooo (@hovooo)
+ *
  * @custom:security-contact @note Please add security-contact for further inquiries.
  */
 contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
