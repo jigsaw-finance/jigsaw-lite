@@ -1,66 +1,67 @@
-## Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+# Jigsaw
 
-Foundry consists of:
+[![test](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml/badge.svg)](https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/groksmith/jigsaw-lite/blob/main/LICENSE)
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+[foundry]: https://getfoundry.sh/
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-## Documentation
+## Overview
+TBD
 
-https://book.getfoundry.sh/
+## Setup
 
-## Usage
+This project uses [just](https://just.systems/man/en/) to run project-specific commands. Refer to installation instructions [here](https://github.com/casey/just?tab=readme-ov-file#installation).
 
-### Build
+Project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
 
-```shell
-$ forge build
+```sh
+git clone git@github.com:groksmith/jigsaw-lite.git
+cd jigsaw-lite
+forge install
 ```
 
-### Test
+## Commands
+To make it easier to perform some tasks within the repo, a few commands are available through a justfile:
 
-```shell
-$ forge test
-```
+### Build Commands
 
-### Format
+| Command | Action |
+|---|---|
+| `clean-all` | Description |
+| `install-vyper` | Install the Vyper venv |
+| `install` | Install the Modules |
+| `update` | Update Dependencies |
+| `build` | Build |
+| `format` | Format code |
+| `remap` | Update remappings.txt |
+| `clean` | Clean artifacts, caches |
 
-```shell
-$ forge fmt
-```
 
-### Gas Snapshots
+### Test Commands
 
-```shell
-$ forge snapshot
-```
+| Command | Description |
+|---|---|
+| `test-all` | Run all tests |
+| `coverage-all` | Run coverage |
 
-### Anvil
+Specific tests can be run using `forge test` conventions, specified in more detail in the Foundry [Book](https://book.getfoundry.sh/reference/forge/forge-test#test-options).
 
-```shell
-$ anvil
-```
 
-### Deploy
+## Audit Reports
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+### Upcoming Release
 
-### Cast
+| Auditor | Report Link |
+|---|---|
+|N/A|N/A|
 
-```shell
-$ cast <subcommand>
-```
 
-### Help
+## About Jigsaw
+TBD
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+---
+
+<p align="center">
+</p>
