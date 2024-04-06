@@ -30,7 +30,7 @@ import { IStaker } from "./interfaces/IStaker.sol";
  *
  * @author Hovooo (@hovooo)
  *
- * @custom:security-contact @note Please add security-contact for further inquiries.
+ * @custom:security-contact support@jigsaw.finance
  */
 contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
     using SafeERC20 for IERC20;
