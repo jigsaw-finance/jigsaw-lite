@@ -42,7 +42,7 @@ abstract contract Fixture is Test {
     function init() internal {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 19_573_312);
 
-        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
+        rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
