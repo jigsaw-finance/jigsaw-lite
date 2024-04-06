@@ -70,6 +70,9 @@ coverage-all: && _timer
 	forge coverage --report lcov
 	genhtml -o coverage --branch-coverage lcov.info --ignore-errors category
 
+doc:  && _timer
+	forge doc --build
+
 mt test: && _timer
 	forge test -vvvvvv --match-test {{test}}
 
