@@ -34,7 +34,7 @@ contract StakingManagerForkTest is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
 
-        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
+        rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,

@@ -35,6 +35,9 @@ import { IStaker } from "./interfaces/IStaker.sol";
 contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
     using SafeERC20 for IERC20;
 
+    /**
+     * Declaration of the Generic Caller role - privileged actor, allowed to perform low level calls on Holdings.
+     */
     bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
 
     /**

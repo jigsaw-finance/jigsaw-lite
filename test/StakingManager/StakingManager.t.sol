@@ -36,7 +36,7 @@ contract StakingManagerForkTest is Test {
     IStaker internal staker;
 
     function setUp() public {
-        rewardToken = new JigsawPoints({ _initialOwner: ADMIN, _premintAmount: 100 });
+        rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
@@ -98,6 +98,16 @@ contract StakingManagerForkTest is Test {
         vm.prank(ADMIN, ADMIN);
         vm.expectRevert(RenouncingDefaultAdminRoleProhibited.selector);
         stakingManager.beginDefaultAdminTransfer(address(0));
+    }
+
+    // Tests if beginDefaultAdminTransfer reverts correctly when caller is unauthorized
+    function test_beginDefaultAdminTransfer_when_unauthorized(address _caller) public {
+        vm.assume(_caller != address(0));
+        vm.assume(_caller != ADMIN);
+
+        vm.prank(_caller, _caller);
+        vm.expectRevert(abi.encodeWithSelector(AccessControlUnauthorizedAccount.selector, _caller, 0x0));
+        stakingManager.beginDefaultAdminTransfer(address(1));
     }
 
     // Tests if renouncing ownership works correctly
