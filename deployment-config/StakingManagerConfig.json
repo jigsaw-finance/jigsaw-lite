@@ -1,0 +1,7 @@
+{
+  "initialDefaultAdmin": "0x01bd9aBD70D74D8eC70D338bD6099ca29DA3F9B4",
+  "underlyingAsset": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+  "ionPool": "0x0000000000eaEbd95dAfcA37A39fd09745739b78",
+  "rewardsDuration": "31536000",
+  "jPointsAddress": "0x83ccf605F487587816f127b4B91b003D342015F4"
+}
