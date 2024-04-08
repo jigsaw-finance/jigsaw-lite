@@ -70,7 +70,7 @@ coverage-all: && _timer
 	forge coverage --report lcov
 	genhtml -o coverage --branch-coverage lcov.info --ignore-errors category
 
-doc:  && _timer
+doc: && _timer
 	forge doc --build
 
 mt test: && _timer
@@ -78,3 +78,64 @@ mt test: && _timer
 
 mp verbosity path: && _timer
 	forge test -{{verbosity}} --match-path test/{{path}}
+
+anvil-fork: && _timer 
+	anvil --fork-url $MAINNET_RPC_URL --chain-id 31337
+
+deploy-all chain: 
+	just deploy-jPoints "$chain"
+	just deploy-stakingManager "$chain"
+
+deploy-stakingManager chain:
+	#!/usr/bin/env bash
+
+	chain=$(echo "$chain" | tr '[:lower:]' '[:upper:]')
+
+	if [ "$chain" == 'ANVIL' ]; then
+		chainId=31337
+	elif [ "$chain" == 'SEPOLIA' ]; then
+		chainId=11155111
+	elif [ "$chain" == 'MAINNET' ]; then
+		chainId=1
+	else
+		chainId=0
+	fi
+
+	rpc_url_var="${chain}_RPC_URL"
+	ethscan_api_key_var="${chain}_ETHERSCAN_API_KEY"
+
+	forge script DeployStakingManagerScript --rpc-url "${!rpc_url_var}" --slow --broadcast -vvvv --etherscan-api-key "${!ethscan_api_key_var}" --verify 
+
+	# Save the deployment address to deployment addresses
+	stakingManager_address=$(jq '.returns.stakingManager.value' "broadcast/DeployStakingManager.s.sol/$chainId/run-latest.json" | xargs)
+	jq --arg address "$stakingManager_address" --arg chain "$chain" '.[$chain] |= . + { "stakingManagerAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json ./deploymentAddresses.json
+
+	# jq --arg address "$stakingManager_address" --arg chain "$chain" '. + { ($chain): { "stakingManagerAddress": $address } }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
+
+
+# Deploy Jigsaw Points Contract
+deploy-jPoints chain: && _timer
+	#!/usr/bin/env bash
+	chain=$(echo "$chain" | tr '[:lower:]' '[:upper:]')
+
+	if [ "$chain" == 'ANVIL' ]; then
+		chainId=31337
+	elif [ "$chain" == 'SEPOLIA' ]; then
+		chainId=11155111
+	elif [ "$chain" == 'MAINNET' ]; then
+		chainId=1
+	else
+		chainId=0
+	fi
+
+	rpc_url_var="${chain}_RPC_URL"
+	ethscan_api_key_var="${chain}_ETHERSCAN_API_KEY"
+
+	forge script DeployJigsawPointsScript --rpc-url "${!rpc_url_var}" --slow --broadcast -vvvv --etherscan-api-key "${!ethscan_api_key_var}" --verify 
+
+	# Save the deployment address to StakingManagerConfig.json
+	jPoints_address=$(jq '.returns.jPoints.value' "broadcast/DeployJigsawPoints.s.sol/$chainId/run-latest.json" | xargs)
+	jq --arg address "$jPoints_address" '. + { "jPointsAddress": $address }' deployment-config/StakingManagerConfig.json >temp.json && mv temp.json deployment-config/StakingManagerConfig.json
+
+	# Save the deployment address to deployment addresses
+	jq --arg address "$jPoints_address" --arg chain "$chain" '.[$chain] |= . + { "jPointsAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
