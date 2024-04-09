@@ -20,7 +20,7 @@ For further details, please consult the documentation.
 
 This project uses [just](https://just.systems/man/en/) to run project-specific commands. Refer to installation instructions [here](https://github.com/casey/just?tab=readme-ov-file#installation).
 
-Some project-specific commands require manipulation with json files, [jq](https://jqlang.github.io/jq/) command-line JSON processor is used. Refer to installation instructions [here](https://jqlang.github.io/jq/download/).
+Certain project-specific commands involve working with JSON files. To facilitate this, we utilize [jq](https://jqlang.github.io/jq/), a command-line JSON processor. If you haven't installed jq yet, refer to installation instructions [here](https://jqlang.github.io/jq/download/).
 
 Project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
 
