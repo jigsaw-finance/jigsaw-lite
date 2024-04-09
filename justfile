@@ -82,60 +82,32 @@ mp verbosity path: && _timer
 anvil-fork: && _timer 
 	anvil --fork-url $MAINNET_RPC_URL --chain-id 31337
 
-deploy-all chain: 
-	just deploy-jPoints "$chain"
-	just deploy-stakingManager "$chain"
-
-deploy-stakingManager chain:
-	#!/usr/bin/env bash
-
-	chain=$(echo "$chain" | tr '[:lower:]' '[:upper:]')
-
-	if [ "$chain" == 'ANVIL' ]; then
-		chainId=31337
-	elif [ "$chain" == 'SEPOLIA' ]; then
-		chainId=11155111
-	elif [ "$chain" == 'MAINNET' ]; then
-		chainId=1
-	else
-		chainId=0
-	fi
-
-	rpc_url_var="${chain}_RPC_URL"
-	ethscan_api_key_var="${chain}_ETHERSCAN_API_KEY"
-
-	forge script DeployStakingManagerScript --rpc-url "${!rpc_url_var}" --slow --broadcast -vvvv --etherscan-api-key "${!ethscan_api_key_var}" --verify 
-
-	# Save the deployment address to deployment addresses
-	stakingManager_address=$(jq '.returns.stakingManager.value' "broadcast/DeployStakingManager.s.sol/$chainId/run-latest.json" | xargs)
-	jq --arg address "$stakingManager_address" --arg chain "$chain" '.[$chain] |= . + { "stakingManagerAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json ./deploymentAddresses.json
-
-	# jq --arg address "$stakingManager_address" --arg chain "$chain" '. + { ($chain): { "stakingManagerAddress": $address } }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
-
+deploy-all: && _timer
+	just deploy-jPoints
+	just deploy-stakingManager
 
 # Deploy Jigsaw Points Contract
-deploy-jPoints chain: && _timer
+deploy-jPoints: && _timer
 	#!/usr/bin/env bash
-	chain=$(echo "$chain" | tr '[:lower:]' '[:upper:]')
+	echo "Deploying Jigsaw Points to $CHAIN..."
 
-	if [ "$chain" == 'ANVIL' ]; then
-		chainId=31337
-	elif [ "$chain" == 'SEPOLIA' ]; then
-		chainId=11155111
-	elif [ "$chain" == 'MAINNET' ]; then
-		chainId=1
-	else
-		chainId=0
-	fi
+	# Deploy Jigsaw Points Contract using DeployJigsawPointsScript.s.sol
+	eval "forge script DeployJigsawPointsScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"${CHAIN}_ETHERSCAN_API_KEY\" --verify"
 
-	rpc_url_var="${chain}_RPC_URL"
-	ethscan_api_key_var="${chain}_ETHERSCAN_API_KEY"
-
-	forge script DeployJigsawPointsScript --rpc-url "${!rpc_url_var}" --slow --broadcast -vvvv --etherscan-api-key "${!ethscan_api_key_var}" --verify 
-
-	# Save the deployment address to StakingManagerConfig.json
-	jPoints_address=$(jq '.returns.jPoints.value' "broadcast/DeployJigsawPoints.s.sol/$chainId/run-latest.json" | xargs)
+	# Save the deployment address to StakingManagerConfig.json to use when deployoing Staking Manager
+	jPoints_address=$(jq '.returns.jPoints.value' "broadcast/DeployJigsawPoints.s.sol/$CHAIN_ID/run-latest.json" | xargs)
 	jq --arg address "$jPoints_address" '. + { "jPointsAddress": $address }' deployment-config/StakingManagerConfig.json >temp.json && mv temp.json deployment-config/StakingManagerConfig.json
 
-	# Save the deployment address to deployment addresses
-	jq --arg address "$jPoints_address" --arg chain "$chain" '.[$chain] |= . + { "jPointsAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
+	# Save the deployment address to deploymentAddresses.json
+	jq --arg address "$jPoints_address" --arg chain "$CHAIN" '.[$chain] |= . + { "jPointsAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
+
+deploy-stakingManager:  && _timer
+	#!/usr/bin/env bash
+	echo "Deploying Staking Manager to $CHAIN..."
+
+	# Deploy Staking Manager Contract using DeployStakingManagerScript.s.sol
+	eval "forge script DeployStakingManagerScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"${CHAIN}_ETHERSCAN_API_KEY\" --verify"
+
+	# Save the deployment address to deploymentAddresses.json
+	stakingManager_address=$(jq '.returns.stakingManager.value' "broadcast/DeployStakingManager.s.sol/$CHAIN_ID/run-latest.json" | xargs)
+	jq --arg address "$stakingManager_address" --arg chain "$CHAIN" '.[$chain] |= . + { "stakingManagerAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json ./deploymentAddresses.json
