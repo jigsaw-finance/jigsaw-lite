@@ -55,6 +55,8 @@ To make it easier to perform some tasks within the repo, a few commands are avai
 | `test-all`     | Run all tests |
 | `coverage-all` | Run coverage  |
 
+Specific tests can be run using `forge test` conventions, specified in more detail in the Foundry [Book](https://book.getfoundry.sh/reference/forge/forge-test#test-options).
+
 ### Deploy Commands
 
 | Command                 | Description                                                                                                    |
@@ -63,8 +65,6 @@ To make it easier to perform some tasks within the repo, a few commands are avai
 | `deploy-all`            | Deploy both the Jigsaw Points Contract and Staking Manager Contract to a blockchain specified in the .env file |
 | `deploy-jPoints`        | Deploy only the Jigsaw Points Contract to a blockchain specified in the .env file                              |
 | `deploy-stakingManager` | Deploy only the Staking Manager Contract to a blockchain specified in the .env file.                           |
-
-Specific tests can be run using `forge test` conventions, specified in more detail in the Foundry [Book](https://book.getfoundry.sh/reference/forge/forge-test#test-options).
 
 ## Audit Reports
 
