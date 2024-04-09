@@ -84,7 +84,7 @@ anvil-fork: && _timer
 
 # Deploy Jigsaw Points Contract and StakingManager Contract
 # Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
-deploy-all: && _timer
+deploy-all:
 	just deploy-jPoints
 	just deploy-stakingManager
 
