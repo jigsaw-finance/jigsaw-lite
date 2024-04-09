@@ -82,11 +82,14 @@ mp verbosity path: && _timer
 anvil-fork: && _timer 
 	anvil --fork-url $MAINNET_RPC_URL --chain-id 31337
 
+# Deploy Jigsaw Points Contract and StakingManager Contract
+# Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-all: && _timer
 	just deploy-jPoints
 	just deploy-stakingManager
 
 # Deploy Jigsaw Points Contract
+# Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-jPoints: && _timer
 	#!/usr/bin/env bash
 	echo "Deploying Jigsaw Points to $CHAIN..."
@@ -101,6 +104,8 @@ deploy-jPoints: && _timer
 	# Save the deployment address to deploymentAddresses.json
 	jq --arg address "$jPoints_address" --arg chain "$CHAIN" '.[$chain] |= . + { "jPointsAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
 
+# Deploy StakingManager Contract
+# Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-stakingManager:  && _timer
 	#!/usr/bin/env bash
 	echo "Deploying Staking Manager to $CHAIN..."
