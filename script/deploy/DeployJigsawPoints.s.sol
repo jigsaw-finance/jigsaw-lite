@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import { stdJson as StdJson } from "forge-std/Script.sol";
 
-import "./Base.s.sol";
+import { BaseScript } from "./Base.s.sol";
 import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 contract DeployJigsawPointsScript is BaseScript {

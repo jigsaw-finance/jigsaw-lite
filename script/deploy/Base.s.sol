@@ -1,22 +1,13 @@
 pragma solidity >=0.8.19 <=0.9.0;
 
 import { Script, stdJson } from "forge-std/Script.sol";
+import { ValidateInterface } from "../ValidateInterface.s.sol";
 
-abstract contract BaseScript is Script {
+abstract contract BaseScript is Script, ValidateInterface {
     using stdJson for string;
 
-    uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
-
-    /// @dev The address of the transaction broadcaster.
-    // address internal broadcaster;
-
-    /// @dev Used to derive the broadcaster's address if $ETH_FROM is not defined.
-    string internal mnemonic;
-
-    bool internal deployCreate2;
-
     modifier broadcast() {
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast(vm.envUint("DEPLOYER_PRIVATE_KEY"));
         _;
         vm.stopBroadcast();
     }
