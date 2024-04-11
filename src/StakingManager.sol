@@ -47,6 +47,12 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     mapping(address => address) private userHolding;
 
     /**
+     * @dev Tracks allowances for each generic caller to invoke contracts via a holding contract.
+     * @dev Structure: holding => generic caller => contract to be invoked => number of invocations allowed
+     */
+    mapping(address => mapping(address => mapping(address => uint256))) private holdingToCallerToContractAllowance;
+
+    /**
      * @dev Address of holding implementation to be cloned from
      */
     address public override holdingImplementationReference;
@@ -151,7 +157,6 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      *
      * Effects:
      * - If the user does not have an existing holding, a new holding is created for the user.
-     * - Emits a `Staked` event indicating the staking action.
      * - Supplies the specified amount of underlying asset to the Ion Pool to earn interest.
      * - Tracks the deposit in the Staker contract to earn jPoints for staking.
      *
@@ -204,12 +209,58 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         IStaker(staker).exit({ _user: holding, _to: _to });
     }
 
+    /**
+     * @dev Sets the allowance for a generic caller to invoke contracts via a holding contract.
+     *
+     * Requirements:
+     * - `_genericCaller` must be a valid address.
+     * - `_callableContract` must be a valid address.
+     * - The caller must have a holding contract associated with their address.
+     * - The `_genericCaller` must have the `GENERIC_CALLER_ROLE`.
+     *
+     * Effects:
+     * - Emits an `InvocationSet` event upon successful execution.
+     *
+     * @param _genericCaller The address of the generic caller.
+     * @param _callableContract The address of the contract to be invoked.
+     * @param _invocationsAllowance The number of invocations allowed for the specified contract by the generic caller
+     * via the holding contract.
+     */
+    function setInvocationAllowance(
+        address _genericCaller,
+        address _callableContract,
+        uint256 _invocationsAllowance
+    )
+        external
+        override
+        validAddress(_genericCaller)
+        validAddress(_callableContract)
+    {
+        // Ensure that the caller has a holding contract associated with their address
+        address holding = userHolding[msg.sender];
+        if (holding == address(0)) revert MissingHoldingContractForUser(msg.sender);
+
+        // Ensure that the specified `_genericCaller` address has the `GENERIC_CALLER_ROLE`
+        _checkRole({ role: GENERIC_CALLER_ROLE, account: _genericCaller });
+
+        // Set the allowance for `_callableContract` by `_genericCaller` for the user's holding contract
+        holdingToCallerToContractAllowance[holding][_genericCaller][_callableContract] = _invocationsAllowance;
+
+        // Emit an event indicating that an invocation allowance has been set
+        emit InvocationAllowanceSet(holding, _genericCaller, _callableContract, _invocationsAllowance);
+    }
+
     // --- Administration ---
 
     /**
-     * @notice Invokes a generic call on a holding contract.
+     * @dev Allows a generic caller to invoke a function on a contract via a holding contract.
+     * This function performs a generic call on the specified contract address using the provided call data.
      *
-     * @dev This function is restricted to be called only by GENERIC_CALLER role
+     * Requirements:
+     * - `_holding` must be a valid address representing the holding contract.
+     * - `_contract` must be a valid address representing the target contract.
+     * - The caller must have the `GENERIC_CALLER_ROLE`.
+     * - The allowance for the caller on the specified `_contract` via `_holding` must be greater than 0.
      *
      * @param _holding The address of the holding contract where the call is invoked.
      * @param _contract The external contract being called by the holding contract.
@@ -231,6 +282,15 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         nonReentrant
         returns (bool success, bytes memory result)
     {
+        // Ensure that caller has enough allowance to perform generic call on specified contract address
+        if (holdingToCallerToContractAllowance[_holding][msg.sender][_contract] == 0) {
+            revert InvocationNotAllowed(msg.sender);
+        }
+
+        // Decrease generic caller's allowance by 1
+        holdingToCallerToContractAllowance[_holding][msg.sender][_contract]--;
+
+        // Perform the generic call
         (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _call: _call });
     }
 
