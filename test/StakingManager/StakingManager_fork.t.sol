@@ -116,34 +116,6 @@ contract StakingManagerForkTest is Test {
         stakingManager.unstake(address(1));
     }
 
-    // Tests if invokeHolding reverts correctly when unauthorized
-    function test_invokeHolding_when_unauthorized() public {
-        address caller = address(uint160(uint256(keccak256("random caller"))));
-        address holding = address(uint160(uint256(keccak256("random holding"))));
-        address callableContract = address(uint160(uint256(keccak256("random contract"))));
-
-        vm.prank(caller, caller);
-        vm.expectRevert();
-        stakingManager.invokeHolding(holding, callableContract, bytes(""));
-    }
-
-    // Tests if invokeHolding works correctly when authorized
-    function test_invokeHolding_when_authorized() public {
-        address user = USER;
-        uint256 _amount = 1e18;
-
-        address genericCaller = address(uint160(uint256(keccak256("generic caller"))));
-        address holding = _stake(user, _amount);
-        address callableContract = wstETH;
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.grantRole(keccak256("GENERIC_CALLER"), genericCaller);
-
-        vm.prank(genericCaller, genericCaller);
-        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
-        assertEq(success, true, "invokeHolding failed");
-    }
-
     modifier validAmount(uint256 _amount) {
         vm.assume(_amount > 0.0001e18 && _amount <= STAKING_SUPPLY_LIMIT);
         _;

@@ -5,38 +5,50 @@ import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
+import { Holding } from "../../src/Holding.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
 import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../utils/IIonPool.sol";
+import { IonPool } from "../utils/IonMockPool.sol";
 import { IStaker } from "../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../utils/IWhitelist.sol";
-
-IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
+import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 
 contract StakingManagerForkTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error RenouncingDefaultAdminRoleProhibited();
     error InvalidAddress();
+    error InvocationNotAllowed(address caller);
 
     event Paused(address account);
     event Unpaused(address account);
     event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
     event HoldingImplementationReferenceUpdated(address indexed _newReference);
+    event InvocationAllowanceSet(
+        address holding, address genericCaller, address callableContract, uint256 invocationsAllowance
+    );
 
     uint256 constant rewardsDuration = 365 days;
 
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
     address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
-    address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+
+    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
 
     JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
+    IonPool internal ION_POOL;
+    address internal holdingReferenceImplementation;
+    address internal wstETH;
 
     function setUp() public {
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
+        wstETH = address(new SampleTokenERC20("wstETH", "wstETH", 0));
+        ION_POOL = new IonPool();
 
         stakingManager = new StakingManager({
             _admin: ADMIN,
@@ -48,10 +60,89 @@ contract StakingManagerForkTest is Test {
 
         staker = IStaker(stakingManager.staker());
 
+        holdingReferenceImplementation = address(new Holding());
+
         vm.startPrank(ADMIN, ADMIN);
         deal(address(rewardToken), address(staker), 1e6 * 10e18);
         staker.addRewards(1e6 * 10e18);
         vm.stopPrank();
+    }
+
+    // Tests if invokeHolding reverts correctly when caller doesn't have GENERIC_CALLER_ROLE
+    function test_invokeHolding_when_callerWithoutRole(address _caller) public {
+        address holding = address(uint160(uint256(keccak256("random holding"))));
+
+        vm.prank(_caller, _caller);
+        vm.expectRevert(abi.encodeWithSelector(AccessControlUnauthorizedAccount.selector, _caller, GENERIC_CALLER_ROLE));
+        stakingManager.invokeHolding(holding, address(rewardToken), bytes(""));
+    }
+
+    // Tests if invokeHolding reverts correctly when caller has GENERIC_CALLER_ROLE but doesn't have allowance for
+    // generic call
+    function test_invokeHolding_when_noAllowanceForInvocation(address _caller) public {
+        address holding = Clones.clone(holdingReferenceImplementation);
+        Holding(holding).init({ _stakingManager: address(stakingManager), _ionPool: address(ION_POOL) });
+
+        address callableContract = address(rewardToken);
+
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.grantRole(keccak256("GENERIC_CALLER"), _caller);
+
+        vm.prank(_caller, _caller);
+        vm.expectRevert(abi.encodeWithSelector(InvocationNotAllowed.selector, _caller));
+        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+    }
+
+    // Tests if invokeHolding works correctly when caller has GENERIC_CALLER_ROLE and has allowance for generic call
+    function test_invokeHolding_when_authorized(address _caller, address _user, uint256 allowance) public {
+        vm.assume(_user != address(0));
+        vm.assume(_caller != address(0));
+        vm.assume(allowance != 0);
+
+        address callableContract = address(rewardToken);
+
+        vm.startPrank(_user, _user);
+        deal(wstETH, _user, 100e18);
+        IERC20(wstETH).approve(address(stakingManager), 100e18);
+        stakingManager.stake(100e18);
+        address holding = stakingManager.getUserHolding(_user);
+        vm.stopPrank();
+
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.grantRole(keccak256("GENERIC_CALLER"), _caller);
+
+        vm.expectEmit();
+        emit InvocationAllowanceSet(holding, _caller, callableContract, allowance);
+        vm.prank(_user, _user);
+        stakingManager.setInvocationAllowance({
+            _genericCaller: _caller,
+            _callableContract: callableContract,
+            _invocationsAllowance: allowance
+        });
+
+        assertEq(
+            stakingManager.getInvocationAllowance({
+                _user: _user,
+                _genericCaller: _caller,
+                _callableContract: callableContract
+            }),
+            allowance,
+            "Allowance set incorrect"
+        );
+
+        vm.prank(_caller, _caller);
+        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+
+        assertEq(success, true, "invokeHolding failed");
+        assertEq(
+            stakingManager.getInvocationAllowance({
+                _user: _user,
+                _genericCaller: _caller,
+                _callableContract: callableContract
+            }),
+            allowance - 1,
+            "Allowance wrong after invocation"
+        );
     }
 
     // Tests setting contract paused from non-Owner's address

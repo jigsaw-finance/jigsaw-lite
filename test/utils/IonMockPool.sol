@@ -14,4 +14,6 @@ contract IonPool {
     function getIlkAddress(uint256 ilkIndex) external view returns (address) {
         return address(1);
     }
+
+    function supply(address user, uint256 amount, bytes32[] calldata proof) external { }
 }
