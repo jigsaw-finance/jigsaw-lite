@@ -1,6 +1,6 @@
 {
   "initialDefaultAdmin": "0x01bd9aBD70D74D8eC70D338bD6099ca29DA3F9B4",
-  "underlyingAsset": "0xB82381A3fBD3FaFA77B3a7bE693342618240067b",
-  "ionPool": "0x60E0a0941B3F26F9FE6926a1c7EcD0EB9E181160",
+  "underlyingAsset": "",
+  "ionPool": "",
   "rewardsDuration": "31536000"
 }
