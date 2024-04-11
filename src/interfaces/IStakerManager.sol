@@ -218,4 +218,22 @@ interface IStakerManager {
      * @return the holding address.
      */
     function getUserHolding(address _user) external view returns (address);
+
+    /**
+     * @dev Retrieves the allowance for a generic caller to invoke contracts via a holding contract.
+     *
+     * @param _user The address of the user.
+     * @param _genericCaller The address of the generic caller.
+     * @param _callableContract The address of the contract to be invoked.
+     * @return The number of invocations allowed for the specified contract by the generic caller
+     * via the holding contract.
+     */
+    function getInvocationAllowance(
+        address _user,
+        address _genericCaller,
+        address _callableContract
+    )
+        external
+        view
+        returns (uint256);
 }
