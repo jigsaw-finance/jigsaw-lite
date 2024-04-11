@@ -73,7 +73,7 @@ interface IStakerManager {
      * via the holding contract.
      */
     event InvocationAllowanceSet(
-        address holding, address genericCaller, address callableContract, address invocationsAllowance
+        address holding, address genericCaller, address callableContract, uint256 invocationsAllowance
     );
 
     /**
@@ -121,6 +121,30 @@ interface IStakerManager {
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
     function lockupExpirationDate() external view returns (uint256);
+
+    /**
+     * @dev Sets the allowance for a generic caller to invoke contracts via a holding contract.
+     *
+     * Requirements:
+     * - `_genericCaller` must be a valid address.
+     * - `_callableContract` must be a valid address.
+     * - The caller must have a holding contract associated with their address.
+     * - The `_genericCaller` must have the `GENERIC_CALLER_ROLE`.
+     *
+     * Effects:
+     * - Emits an `InvocationSet` event upon successful execution.
+     *
+     * @param _genericCaller The address of the generic caller.
+     * @param _callableContract The address of the contract to be invoked.
+     * @param _invocationsAllowance The number of invocations allowed for the specified contract by the generic caller
+     * via the holding contract.
+     */
+    function setInvocationAllowance(
+        address _genericCaller,
+        address _callableContract,
+        uint256 _invocationsAllowance
+    )
+        external;
 
     /**
      * @notice Invokes a generic call on a holding contract.
