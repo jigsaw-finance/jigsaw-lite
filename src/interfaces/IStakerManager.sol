@@ -12,8 +12,9 @@ interface IStakerManager {
      * @dev The operation failed because renouncing default admin role is prohibited.
      */
     error RenouncingDefaultAdminRoleProhibited();
+
     /**
-     * @dev The operation failed because amount is zero;
+     * @dev The operation failed because amount is zero.
      */
     error InvalidAmount();
 
@@ -23,30 +24,57 @@ interface IStakerManager {
     error InvalidAddress();
 
     /**
-     * @dev The operation failed because unstaking is not possible before lockup period ends;
+     * @dev The operation failed because unstaking is not possible before lockup period ends.
      */
     error PreLockupPeriodUnstaking();
 
     /**
-     * @dev The operation failed because caller's holding's balance in Ion Pool is zero;
+     * @dev The operation failed because caller's holding's balance in Ion Pool is zero.
      */
     error NothingToWithdrawFromIon(address caller);
 
+    /**
+     * @dev The operation failed because user attempts an action that requires a holding contract associated with their
+     * address, but no holding contract is found.
+     * @param user The address of the user who hasn't holding contract.
+     */
+    error MissingHoldingContractForUser(address user);
+
+    /**
+     * @dev The operation failed because the generic caller attempts to invoke a contract via a holding contract,
+     * but the allowance for the invocation is not permitted.
+     * @param caller The address of the generic caller attempting the invocation.
+     */
+    error InvocationNotAllowed(address caller);
+
     // --- Events ---
     /**
-     * @dev emitted when participant staked
+     * @dev emitted when participant staked.
      */
     event Staked(address indexed user, uint256 indexed amount);
 
     /**
-     * @dev emitted when participant unstaked
+     * @dev emitted when participant unstaked.
      */
     event Unstaked(address indexed to, uint256 indexed amount);
 
     /**
-     * @dev emitted when a new holding is created
+     * @dev emitted when a new holding is created.
      */
     event HoldingCreated(address indexed user, address indexed holdingAddress);
+
+    /**
+     * @dev emitted when the allowance for invoking contracts via a holding contract is set.
+     *
+     * @param holding The address of the holding contract.
+     * @param genericCaller The address of the generic caller.
+     * @param callableContract The address of the contract that can be invoked.
+     * @param invocationsAllowance The number of invocations allowed for the specified contract by the generic caller
+     * via the holding contract.
+     */
+    event InvocationAllowanceSet(
+        address holding, address genericCaller, address callableContract, address invocationsAllowance
+    );
 
     /**
      * @dev emitted when the expiration date of a lockup is updated.
