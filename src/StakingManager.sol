@@ -368,6 +368,28 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
         return userHolding[_user];
     }
 
+    /**
+     * @dev Get the allowance for a generic caller to invoke contracts via a holding contract.
+     *
+     * @param _user The address of the user.
+     * @param _genericCaller The address of the generic caller.
+     * @param _callableContract The address of the contract to be invoked.
+     * @return The number of invocations allowed for the specified contract by the generic caller
+     * via the holding contract.
+     */
+    function getInvocationAllowance(
+        address _user,
+        address _genericCaller,
+        address _callableContract
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return holdingToCallerToContractAllowance[userHolding[_user]][_genericCaller][_callableContract];
+    }
+
     // --- Helpers ---
 
     /**
