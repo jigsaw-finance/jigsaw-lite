@@ -3,15 +3,18 @@ pragma solidity ^0.8.20;
 
 //Ion Pool Mock for testing deployment and interface verification
 contract IonPool {
-    function balanceOf(address user) external view returns (uint256) {
+    // ignore warning 5667
+    function balanceOf(address) external view returns (uint256) {
         return 1e18;
     }
 
+    // ignore warning 5667
     function debt() external view returns (uint256) {
         return 0;
     }
 
-    function getIlkAddress(uint256 ilkIndex) external view returns (address) {
+    // ignore warning 5667
+    function getIlkAddress(uint256) external view returns (address) {
         return address(1);
     }
 

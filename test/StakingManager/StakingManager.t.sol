@@ -90,7 +90,7 @@ contract StakingManagerForkTest is Test {
 
         vm.prank(_caller, _caller);
         vm.expectRevert(abi.encodeWithSelector(InvocationNotAllowed.selector, _caller));
-        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+        stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
     }
 
     // Tests if invokeHolding works correctly when caller has GENERIC_CALLER_ROLE and has allowance for generic call
