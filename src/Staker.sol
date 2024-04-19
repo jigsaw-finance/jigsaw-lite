@@ -281,8 +281,10 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         if (rewardBalance == 0) revert NoRewardsToDistribute();
 
+        uint256 updatedTotalSupply = _totalSupply + _amount;
+        if (updatedTotalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
+
         _totalSupply += _amount;
-        if (_totalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
 
         _balances[_user] += _amount;
         emit Staked(_user, _amount);
@@ -299,9 +301,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         address _user,
         uint256 _amount
     )
-        public
+        internal
         override
-        onlyStakingManager
         whenNotPaused
         nonReentrant
         updateReward(_user)
@@ -319,16 +320,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      *  @param _user to claim rewards for.
      *  @param _to address to which rewards will be sent.
      */
-    function claimRewards(
-        address _user,
-        address _to
-    )
-        public
-        override
-        onlyStakingManager
-        nonReentrant
-        updateReward(_user)
-    {
+    function claimRewards(address _user, address _to) internal override nonReentrant updateReward(_user) {
         uint256 reward = rewards[_user];
         if (reward == 0) revert NothingToClaim();
 
