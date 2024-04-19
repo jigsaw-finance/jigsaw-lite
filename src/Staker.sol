@@ -127,9 +127,12 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Constructor function for initializing the Staker contract.
-     * @param _initialOwner Address of the initial owner.
-     * @param _tokenIn Address of the staking token.
-     * @param _rewardToken Address of the reward token.
+     *
+     * @param _initialOwner The initial owner of the contract
+     * @param _tokenIn The address of the token to be staked
+     * @param _rewardToken The address of the reward token
+     * @param _stakingManager The address of the staking manager contract
+     * @param _rewardsDuration The duration of the rewards period, in seconds
      */
     constructor(
         address _initialOwner,
@@ -138,12 +141,11 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         address _stakingManager,
         uint256 _rewardsDuration
     )
-        validAddress(_initialOwner)
+        Ownable(_initialOwner)
         validAddress(_tokenIn)
         validAddress(_rewardToken)
         validAddress(_stakingManager)
         validAmount(_rewardsDuration)
-        Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
         rewardToken = _rewardToken;
