@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { AccessControlDefaultAdminRules } from
-    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -14,8 +14,9 @@ import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
 
 import { IHolding } from "./interfaces/IHolding.sol";
+import { IHoldingManager } from "./interfaces/IHoldingManager.sol";
 import { IIonPool } from "./interfaces/IIonPool.sol";
-import { IStakerManager } from "./interfaces/IStakerManager.sol";
+import { IStakingManager } from "./interfaces/IStakingManager.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
@@ -26,36 +27,19 @@ import { IStaker } from "./interfaces/IStaker.sol";
  * generate yield.
  * @notice Additionally, stakers farm jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
  *
- * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `AccessControlDefaultAdminRules`.
+ * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `Ownable2Step`.
  *
  * @author Hovooo (@hovooo)
  *
  * @custom:security-contact support@jigsaw.finance
  */
-contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
+contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     /**
-     * Declaration of the Generic Caller role - privileged actor, allowed to perform low level calls on Holdings.
+     * @dev Address of the Holding Manager Contract
      */
-    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
-
-    /**
-     * @notice Stores a mapping of each user to their holding.
-     * @dev returns holding address.
-     */
-    mapping(address => address) private userHolding;
-
-    /**
-     * @dev Tracks allowances for each generic caller to invoke contracts via a holding contract.
-     * @dev Structure: holding => generic caller => contract to be invoked => number of invocations allowed
-     */
-    mapping(address => mapping(address => mapping(address => uint256))) private holdingToCallerToContractAllowance;
-
-    /**
-     * @dev Address of holding implementation to be cloned from
-     */
-    address public override holdingImplementationReference;
+    IHoldingManager public immutable override holdingManager;
 
     /**
      * @dev Address of the underlying asset used for staking.
@@ -108,39 +92,42 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @dev Constructor function for initializing the StakerManager contract.
+     *
+     * @param _initialOwner Address of the initial owner.
      * @param _underlyingAsset Address of the underlying asset used for staking.
-     * @param _ionPool Address of the ionPool contract.
+     * @param _rewardToken Address of the reward token.
+     * @param _holdingManager Address of the holding manager contract.
+     * @param _ionPool Address of the IonPool contract.
+     * @param _rewardsDuration Duration of the rewards period.
      */
     constructor(
-        address _admin,
+        address _initialOwner,
+        address _holdingManager,
         address _underlyingAsset,
         address _rewardToken,
         address _ionPool,
         uint256 _rewardsDuration
     )
-        AccessControlDefaultAdminRules(
-            2 days,
-            _admin // Explicit initial `DEFAULT_ADMIN_ROLE` holder
-        )
-        validAddress(_admin)
+        Ownable(_initialOwner)
         validAddress(_underlyingAsset)
+        validAddress(_holdingManager)
         validAddress(_rewardToken)
         validAddress(_ionPool)
         validAmount(_rewardsDuration)
     {
+        holdingManager = IHoldingManager(_holdingManager);
         underlyingAsset = _underlyingAsset;
         rewardToken = _rewardToken;
         ionPool = _ionPool;
         staker = address(
             new Staker({
-                _initialOwner: _admin,
+                _initialOwner: _initialOwner,
                 _tokenIn: _underlyingAsset,
                 _rewardToken: _rewardToken,
                 _stakingManager: address(this),
                 _rewardsDuration: _rewardsDuration
             })
         );
-        holdingImplementationReference = address(new Holding());
         lockupExpirationDate = block.timestamp + _rewardsDuration;
     }
 
@@ -166,10 +153,9 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @param _amount The amount of assets to stake.
      */
     function stake(uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) {
-        address holding = userHolding[msg.sender];
-
         // Create a holding for msg.sender if there is no holding associated with their address yet.
-        if (holding == address(0)) holding = _createHolding();
+        address holding = holdingManager.getUserHolding(msg.sender);
+        if (holding == address(0)) holding = holdingManager.createHolding(msg.sender);
 
         emit Staked(msg.sender, _amount);
 
@@ -198,126 +184,40 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      */
     function unstake(address _to) external override nonReentrant whenNotPaused validAddress(_to) {
         if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
-        address holding = userHolding[msg.sender];
+
+        address holding = holdingManager.getUserHolding(msg.sender);
 
         uint256 ionPoolBalance = IIonPool(ionPool).balanceOf(holding);
         if (ionPoolBalance == 0) revert NothingToWithdrawFromIon(msg.sender);
 
         emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
-        IHolding(holding).unstake({ _to: _to, _amount: ionPoolBalance });
+        holdingManager.unstake({ _holding: holding, _pool: ionPool, _to: _to, _amount: ionPoolBalance });
         IStaker(staker).exit({ _user: holding, _to: _to });
-    }
-
-    /**
-     * @dev Sets the allowance for a generic caller to invoke contracts via a holding contract.
-     *
-     * Requirements:
-     * - `_genericCaller` must be a valid address.
-     * - `_callableContract` must be a valid address.
-     * - The caller must have a holding contract associated with their address.
-     * - The `_genericCaller` must have the `GENERIC_CALLER_ROLE`.
-     *
-     * Effects:
-     * - Emits an `InvocationSet` event upon successful execution.
-     *
-     * @param _genericCaller The address of the generic caller.
-     * @param _callableContract The address of the contract to be invoked.
-     * @param _invocationsAllowance The number of invocations allowed for the specified contract by the generic caller
-     * via the holding contract.
-     */
-    function setInvocationAllowance(
-        address _genericCaller,
-        address _callableContract,
-        uint256 _invocationsAllowance
-    )
-        external
-        override
-        validAddress(_genericCaller)
-        validAddress(_callableContract)
-    {
-        // Ensure that the caller has a holding contract associated with their address
-        address holding = userHolding[msg.sender];
-        if (holding == address(0)) revert MissingHoldingContractForUser(msg.sender);
-
-        // Ensure that the specified `_genericCaller` address has the `GENERIC_CALLER_ROLE`
-        _checkRole({ role: GENERIC_CALLER_ROLE, account: _genericCaller });
-
-        // Set the allowance for `_callableContract` by `_genericCaller` for the user's holding contract
-        holdingToCallerToContractAllowance[holding][_genericCaller][_callableContract] = _invocationsAllowance;
-
-        // Emit an event indicating that an invocation allowance has been set
-        emit InvocationAllowanceSet(holding, _genericCaller, _callableContract, _invocationsAllowance);
     }
 
     // --- Administration ---
 
     /**
-     * @dev Allows a generic caller to invoke a function on a contract via a holding contract.
-     * This function performs a generic call on the specified contract address using the provided call data.
-     *
-     * Requirements:
-     * - `_holding` must be a valid address representing the holding contract.
-     * - `_contract` must be a valid address representing the target contract.
-     * - The caller must have the `GENERIC_CALLER_ROLE`.
-     * - The allowance for the caller on the specified `_contract` via `_holding` must be greater than 0.
-     *
-     * @param _holding The address of the holding contract where the call is invoked.
-     * @param _contract The external contract being called by the holding contract.
-     * @param _call The call data.
-     *
-     * @return success Indicates whether the call was successful or not.
-     * @return result Data obtained from the external call.
-     */
-    function invokeHolding(
-        address _holding,
-        address _contract,
-        bytes calldata _call
-    )
-        external
-        override
-        validAddress(_holding)
-        validAddress(_contract)
-        onlyRole(GENERIC_CALLER_ROLE)
-        nonReentrant
-        returns (bool success, bytes memory result)
-    {
-        // Ensure that caller has enough allowance to perform generic call on specified contract address
-        if (holdingToCallerToContractAllowance[_holding][msg.sender][_contract] == 0) {
-            revert InvocationNotAllowed(msg.sender);
-        }
-
-        // Decrease generic caller's allowance by 1
-        holdingToCallerToContractAllowance[_holding][msg.sender][_contract]--;
-
-        // Perform the generic call
-        (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _call: _call });
-    }
-
-    /**
      * @dev Triggers stopped state.
      */
-    function pause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function pause() external override onlyOwner whenNotPaused {
         _pause();
     }
 
     /**
      * @dev Returns to normal state.
      */
-    function unpause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenPaused {
+    function unpause() external override onlyOwner whenPaused {
         _unpause();
     }
 
     /**
-     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
+     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
      */
-    function beginDefaultAdminTransfer(address newAdmin)
-        public
-        override(AccessControlDefaultAdminRules, IStakerManager)
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
-        _beginDefaultAdminTransfer(newAdmin);
+    function renounceOwnership() public pure override {
+        revert RenouncingOwnershipProhibited();
     }
 
     /**
@@ -331,30 +231,9 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      *
      * @param _newDate The new lockup expiration date to be set.
      */
-    function setLockupExpirationDate(uint256 _newDate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setLockupExpirationDate(uint256 _newDate) external onlyOwner {
         emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
         lockupExpirationDate = _newDate;
-    }
-
-    /**
-     * @dev Allows the default admin role to set a new holdingImplementationReference.
-     *
-     * Requirements:
-     * - Caller must have the DEFAULT_ADMIN_ROLE.
-     *
-     * Emits:
-     * - `HoldingImplementationReferenceUpdated` event indicating that holding implementation reference
-     * has been updated.
-     *
-     * @param _newReference The address of the new implementation reference.
-     */
-    function setHoldingImplementationReference(address _newReference)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        validAddress(_newReference)
-    {
-        emit HoldingImplementationReferenceUpdated(_newReference);
-        holdingImplementationReference = _newReference;
     }
 
     // --- Getters ---
@@ -365,51 +244,6 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @return the holding address.
      */
     function getUserHolding(address _user) external view override returns (address) {
-        return userHolding[_user];
-    }
-
-    /**
-     * @dev Get the allowance for a generic caller to invoke contracts via a holding contract.
-     *
-     * @param _user The address of the user.
-     * @param _genericCaller The address of the generic caller.
-     * @param _callableContract The address of the contract to be invoked.
-     * @return The number of invocations allowed for the specified contract by the generic caller
-     * via the holding contract.
-     */
-    function getInvocationAllowance(
-        address _user,
-        address _genericCaller,
-        address _callableContract
-    )
-        external
-        view
-        override
-        returns (uint256)
-    {
-        return holdingToCallerToContractAllowance[userHolding[_user]][_genericCaller][_callableContract];
-    }
-
-    // --- Helpers ---
-
-    /**
-     * @notice Creates a new holding instance for the msg.sender.
-     * @dev Clones a new holding contract instance using the reference implementation
-     * and associates it with the caller's address. Emits an event to signify the creation
-     * of the holding contract. Additionally, initializes the holding contract.
-     *
-     * @return newHoldingAddress The address of the newly created holding contract.
-     */
-    function _createHolding() private returns (address newHoldingAddress) {
-        // Deploy a new holding contract instance
-        newHoldingAddress = Clones.clone(holdingImplementationReference);
-        // Associate the new holding contract with msg.sender
-        userHolding[msg.sender] = newHoldingAddress;
-
-        // Emit an event to notify of the creation of the holding contract
-        emit HoldingCreated(msg.sender, newHoldingAddress);
-
-        // Initialize the newly created holding contract
-        IHolding(newHoldingAddress).init({ _stakingManager: address(this), _ionPool: ionPool });
+        return holdingManager.getUserHolding(_user);
     }
 }
