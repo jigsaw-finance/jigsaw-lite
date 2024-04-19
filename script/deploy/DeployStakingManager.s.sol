@@ -8,6 +8,7 @@ import { IIonPool } from "../../test/utils/IIonPool.sol";
 
 import { BaseScript } from "./Base.s.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
+import { IHoldingManager } from "../../src/interfaces/IHoldingManager.sol";
 
 contract DeployStakingManagerScript is BaseScript {
     using StdJson for string;
@@ -23,6 +24,7 @@ contract DeployStakingManagerScript is BaseScript {
     uint256 REWARDS_DURATION = config.readUint(".rewardsDuration");
 
     function run() external broadcast returns (StakingManager stakingManager) {
+        _validateInterface(IHoldingManager(HOLDING_MANAGER));
         _validateInterface(IIonPool(ION_POOL));
         _validateInterface(IERC20(UNDERLYING));
         _validateInterface(IERC20(REWARD_TOKEN));
