@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { HoldingManager } from "../../src/HoldingManager.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
 import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
@@ -30,14 +31,16 @@ contract StakingManagerForkTest is Test {
     JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
+    HoldingManager internal holdingManager;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
 
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
-
+        holdingManager = new HoldingManager(ADMIN);
         stakingManager = new StakingManager({
-            _admin: ADMIN,
+            _initialOwner: ADMIN,
+            _holdingManager: address(holdingManager),
             _underlyingAsset: wstETH,
             _rewardToken: address(rewardToken),
             _ionPool: address(ION_POOL),
@@ -47,6 +50,7 @@ contract StakingManagerForkTest is Test {
         staker = IStaker(stakingManager.staker());
 
         vm.startPrank(ADMIN, ADMIN);
+        holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), address(stakingManager));
         deal(address(rewardToken), address(staker), 1e6 * 10e18);
         staker.addRewards(1e6 * 10e18);
         vm.stopPrank();

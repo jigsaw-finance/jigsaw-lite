@@ -17,19 +17,14 @@ import { IStaker } from "../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../utils/IWhitelist.sol";
 import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 
-contract StakingManagerForkTest is Test {
+contract StakingManagerTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
-    error RenouncingDefaultAdminRoleProhibited();
+    error RenouncingOwnershipProhibited();
     error InvalidAddress();
-    error InvocationNotAllowed(address caller);
 
     event Paused(address account);
     event Unpaused(address account);
     event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
-    event HoldingImplementationReferenceUpdated(address indexed _newReference);
-    event InvocationAllowanceSet(
-        address holding, address genericCaller, address callableContract, uint256 invocationsAllowance
-    );
 
     uint256 constant rewardsDuration = 365 days;
 
@@ -51,7 +46,8 @@ contract StakingManagerForkTest is Test {
         ION_POOL = new IonPool();
 
         stakingManager = new StakingManager({
-            _admin: ADMIN,
+            _initialOwner: ADMIN,
+            _holdingManager: address(uint160(uint256(keccak256(bytes("HOLDING MANAGER"))))),
             _underlyingAsset: wstETH,
             _rewardToken: address(rewardToken),
             _ionPool: address(ION_POOL),
@@ -66,83 +62,6 @@ contract StakingManagerForkTest is Test {
         deal(address(rewardToken), address(staker), 1e6 * 10e18);
         staker.addRewards(1e6 * 10e18);
         vm.stopPrank();
-    }
-
-    // Tests if invokeHolding reverts correctly when caller doesn't have GENERIC_CALLER_ROLE
-    function test_invokeHolding_when_callerWithoutRole(address _caller) public {
-        address holding = address(uint160(uint256(keccak256("random holding"))));
-
-        vm.prank(_caller, _caller);
-        vm.expectRevert(abi.encodeWithSelector(AccessControlUnauthorizedAccount.selector, _caller, GENERIC_CALLER_ROLE));
-        stakingManager.invokeHolding(holding, address(rewardToken), bytes(""));
-    }
-
-    // Tests if invokeHolding reverts correctly when caller has GENERIC_CALLER_ROLE but doesn't have allowance for
-    // generic call
-    function test_invokeHolding_when_noAllowanceForInvocation(address _caller) public {
-        address holding = Clones.clone(holdingReferenceImplementation);
-        Holding(holding).init({ _stakingManager: address(stakingManager), _ionPool: address(ION_POOL) });
-
-        address callableContract = address(rewardToken);
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.grantRole(keccak256("GENERIC_CALLER"), _caller);
-
-        vm.prank(_caller, _caller);
-        vm.expectRevert(abi.encodeWithSelector(InvocationNotAllowed.selector, _caller));
-        stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
-    }
-
-    // Tests if invokeHolding works correctly when caller has GENERIC_CALLER_ROLE and has allowance for generic call
-    function test_invokeHolding_when_authorized(address _caller, address _user, uint256 allowance) public {
-        vm.assume(_user != address(0));
-        vm.assume(_caller != address(0));
-        vm.assume(allowance != 0);
-
-        address callableContract = address(rewardToken);
-
-        vm.startPrank(_user, _user);
-        deal(wstETH, _user, 100e18);
-        IERC20(wstETH).approve(address(stakingManager), 100e18);
-        stakingManager.stake(100e18);
-        address holding = stakingManager.getUserHolding(_user);
-        vm.stopPrank();
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.grantRole(keccak256("GENERIC_CALLER"), _caller);
-
-        vm.expectEmit();
-        emit InvocationAllowanceSet(holding, _caller, callableContract, allowance);
-        vm.prank(_user, _user);
-        stakingManager.setInvocationAllowance({
-            _genericCaller: _caller,
-            _callableContract: callableContract,
-            _invocationsAllowance: allowance
-        });
-
-        assertEq(
-            stakingManager.getInvocationAllowance({
-                _user: _user,
-                _genericCaller: _caller,
-                _callableContract: callableContract
-            }),
-            allowance,
-            "Allowance set incorrect"
-        );
-
-        vm.prank(_caller, _caller);
-        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
-
-        assertEq(success, true, "invokeHolding failed");
-        assertEq(
-            stakingManager.getInvocationAllowance({
-                _user: _user,
-                _genericCaller: _caller,
-                _callableContract: callableContract
-            }),
-            allowance - 1,
-            "Allowance wrong after invocation"
-        );
     }
 
     // Tests setting contract paused from non-Owner's address
@@ -184,39 +103,11 @@ contract StakingManagerForkTest is Test {
         vm.stopPrank();
     }
 
-    // Tests if beginDefaultAdminTransfer reverts correctly when transferred to address(0)
-    function test_beginDefaultAdminTransfer_when_address0() public {
+    // Tests if renounceOwnership reverts correctly
+    function test_renounceOwnership_when() public {
         vm.prank(ADMIN, ADMIN);
-        vm.expectRevert(RenouncingDefaultAdminRoleProhibited.selector);
-        stakingManager.beginDefaultAdminTransfer(address(0));
-    }
-
-    // Tests if beginDefaultAdminTransfer reverts correctly when caller is unauthorized
-    function test_beginDefaultAdminTransfer_when_unauthorized(address _caller) public {
-        vm.assume(_caller != address(0));
-        vm.assume(_caller != ADMIN);
-
-        vm.prank(_caller, _caller);
-        vm.expectRevert(abi.encodeWithSelector(AccessControlUnauthorizedAccount.selector, _caller, 0x0));
-        stakingManager.beginDefaultAdminTransfer(address(1));
-    }
-
-    // Tests if renouncing ownership works correctly
-    function test_beginDefaultAdminTransfer_when_authorized() public {
-        address newAdmin = address(uint160(uint256(keccak256(bytes("NEW ADMIN")))));
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.beginDefaultAdminTransfer(newAdmin);
-
-        (address _newAdmin,) = stakingManager.pendingDefaultAdmin();
-        vm.assertEq(_newAdmin, newAdmin, "Incorrect pendingDefaultAdmin");
-
-        vm.warp(block.timestamp + stakingManager.defaultAdminDelay() + 1);
-
-        vm.prank(newAdmin, newAdmin);
-        stakingManager.acceptDefaultAdminTransfer();
-
-        vm.assertEq(stakingManager.defaultAdmin(), newAdmin, "Incorrect new admin");
+        vm.expectRevert(RenouncingOwnershipProhibited.selector);
+        stakingManager.renounceOwnership();
     }
 
     function test_setLockupExpirationDate_when_unauthorized(address _caller) public {
@@ -235,31 +126,5 @@ contract StakingManagerForkTest is Test {
         stakingManager.setLockupExpirationDate(newDate);
 
         assertEq(stakingManager.lockupExpirationDate(), newDate, "New lockupExpirationDate incorrect");
-    }
-
-    function test_setHoldingImplementationReference_when_unauthorized(address _caller) public {
-        vm.assume(_caller != ADMIN);
-        vm.prank(_caller, _caller);
-        vm.expectRevert();
-        stakingManager.setHoldingImplementationReference(address(1));
-    }
-
-    function test_setHoldingImplementationReference_when_invalidImplementationAddress() public {
-        vm.prank(ADMIN, ADMIN);
-        vm.expectRevert(InvalidAddress.selector);
-        stakingManager.setHoldingImplementationReference(address(0));
-    }
-
-    function test_setHoldingImplementationReference_when_authorized(address _newRef) public {
-        vm.assume(_newRef != address(0));
-
-        vm.expectEmit();
-        emit HoldingImplementationReferenceUpdated(_newRef);
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.setHoldingImplementationReference(_newRef);
-
-        assertEq(
-            stakingManager.holdingImplementationReference(), _newRef, "New holdingImplementationReference incorrect"
-        );
     }
 }

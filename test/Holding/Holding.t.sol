@@ -22,9 +22,6 @@ contract StakingManagerForkTest is Test {
         address newHolding = Clones.clone(holdingReferenceImplementation);
 
         vm.expectRevert(ZeroAddress.selector);
-        Holding(newHolding).init({ _stakingManager: address(0), _ionPool: address(0) });
-
-        vm.expectRevert(ZeroAddress.selector);
-        Holding(newHolding).init({ _stakingManager: address(1), _ionPool: address(0) });
+        Holding(newHolding).init({ _holdingManager: address(0) });
     }
 }
