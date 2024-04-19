@@ -15,7 +15,8 @@ contract DeployStakingManagerScript is BaseScript {
     string configPath = "./deployment-config/StakingManagerConfig.json";
     string config = vm.readFile(configPath);
 
-    address DEFAULT_ADMIN = config.readAddress(".initialDefaultAdmin");
+    address INITIAL_OWNER = config.readAddress(".initialDefaultAdmin");
+    address HOLDING_MANAGER = config.readAddress(".holdingManager");
     address UNDERLYING = config.readAddress(".underlyingAsset");
     address REWARD_TOKEN = config.readAddress(".jPointsAddress");
     address ION_POOL = config.readAddress(".ionPool");
@@ -27,7 +28,8 @@ contract DeployStakingManagerScript is BaseScript {
         _validateInterface(IERC20(REWARD_TOKEN));
 
         stakingManager = new StakingManager({
-            _admin: DEFAULT_ADMIN,
+            _initialOwner: INITIAL_OWNER,
+            _holdingManager: HOLDING_MANAGER,
             _underlyingAsset: UNDERLYING,
             _rewardToken: REWARD_TOKEN,
             _ionPool: ION_POOL,
