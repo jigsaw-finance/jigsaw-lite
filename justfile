@@ -86,8 +86,10 @@ anvil-fork: && _timer
 # Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-all:
 	just deploy-jPoints
+	just deploy-holdingManager
 	just deploy-stakingManager
-
+	just grant-stakingManagerRole
+	
 # Deploy Jigsaw Points Contract
 # Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-jPoints: && _timer
@@ -95,7 +97,7 @@ deploy-jPoints: && _timer
 	echo "Deploying Jigsaw Points to $CHAIN..."
 
 	# Deploy Jigsaw Points Contract using DeployJigsawPointsScript.s.sol
-	eval "forge script DeployJigsawPointsScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"${CHAIN}_ETHERSCAN_API_KEY\" --verify"
+	eval "forge script DeployJigsawPointsScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"\${${CHAIN}_ETHERSCAN_API_KEY}\" --verify"
 
 	# Save the deployment address to StakingManagerConfig.json to use when deployoing Staking Manager
 	jPoints_address=$(jq '.returns.jPoints.value' "broadcast/DeployJigsawPoints.s.sol/$CHAIN_ID/run-latest.json" | xargs)
@@ -104,6 +106,23 @@ deploy-jPoints: && _timer
 	# Save the deployment address to deploymentAddresses.json
 	jq --arg address "$jPoints_address" --arg chain "$CHAIN" '.[$chain] |= . + { "jPointsAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
 
+# Deploy Jigsaw Points Contract
+# Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
+deploy-holdingManager: && _timer
+	#!/usr/bin/env bash
+	echo "Deploying Holding Manager to $CHAIN..."
+
+	# Deploy Holding Manager Contract using DeployHoldingManagerScript.s.sol
+	eval "forge script DeployHoldingManagerScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"\${${CHAIN}_ETHERSCAN_API_KEY}\" --verify"
+
+	# Save the deployment address to StakingManagerConfig.json to use when deployoing Staking Manager
+	holdingManager_address=$(jq '.returns.holdingManager.value' "broadcast/DeployHoldingManager.s.sol/$CHAIN_ID/run-latest.json" | xargs)
+	jq --arg address "$holdingManager_address" '. + { "holdingManager": $address }' deployment-config/StakingManagerConfig.json >temp.json && mv temp.json deployment-config/StakingManagerConfig.json
+
+	# Save the deployment address to deploymentAddresses.json
+	jq --arg address "$holdingManager_address" --arg chain "$CHAIN" '.[$chain] |= . + { "holdingManager": $address }' ./deploymentAddresses.json > temp.json && mv temp.json deploymentAddresses.json
+
+
 # Deploy StakingManager Contract
 # Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
 deploy-stakingManager:  && _timer
@@ -111,8 +130,14 @@ deploy-stakingManager:  && _timer
 	echo "Deploying Staking Manager to $CHAIN..."
 
 	# Deploy Staking Manager Contract using DeployStakingManagerScript.s.sol
-	eval "forge script DeployStakingManagerScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"${CHAIN}_ETHERSCAN_API_KEY\" --verify"
+	eval "forge script DeployStakingManagerScript --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv --etherscan-api-key \"\${${CHAIN}_ETHERSCAN_API_KEY}\" --verify"
+
+	# Save the deployment address to StakingManagerConfig.json to use when granting Staking Manager role 
+	stakingManager_address=$(jq '.returns.stakingManager.value' "broadcast/DeployStakingManager.s.sol/$CHAIN_ID/run-latest.json" | xargs)
+	jq --arg address "$stakingManager_address" '. + { "stakingManager_address": $address }' deployment-config/StakingManagerConfig.json >temp.json && mv temp.json deployment-config/StakingManagerConfig.json
 
 	# Save the deployment address to deploymentAddresses.json
-	stakingManager_address=$(jq '.returns.stakingManager.value' "broadcast/DeployStakingManager.s.sol/$CHAIN_ID/run-latest.json" | xargs)
 	jq --arg address "$stakingManager_address" --arg chain "$CHAIN" '.[$chain] |= . + { "stakingManagerAddress": $address }' ./deploymentAddresses.json > temp.json && mv temp.json ./deploymentAddresses.json
+
+grant-stakingManagerRole: && _timer
+	eval "forge script GrantRoleToStakingManager --rpc-url \"\${${CHAIN}_RPC_URL}\" --slow --broadcast -vvvv"
