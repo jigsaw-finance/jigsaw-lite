@@ -31,19 +31,14 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
     using SafeERC20 for IERC20;
 
     /**
-     * @dev Address of the Staking Manager contract.
+     * @dev Address of the Holding Manager contract.
      */
-    address public stakingManager;
-
-    /**
-     * @dev Address of the Ion Pool contract.
-     */
-    address public ionPool;
+    address public holdingManager;
 
     // --- Modifiers ---
 
-    modifier onlyStakingManager() {
-        if (msg.sender != stakingManager) revert UnauthorizedCaller();
+    modifier onlyHoldingManager() {
+        if (msg.sender != holdingManager) revert UnauthorizedCaller();
         _;
     }
 
@@ -61,14 +56,11 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
 
     /**
      * @dev Initializes the contract (instead of a constructor) to be cloned.
-     * @param _stakingManager The address of the contract handling staking operations.
-     * @param _ionPool Address of the Ion Pool contract.
+     * @param _holdingManager The address of the contract handling staking operations.
      */
-    function init(address _stakingManager, address _ionPool) external initializer {
-        if (_ionPool == address(0)) revert ZeroAddress();
-        if (_stakingManager == address(0)) revert ZeroAddress();
-        stakingManager = _stakingManager;
-        ionPool = _ionPool;
+    function init(address _holdingManager) external initializer {
+        if (_holdingManager == address(0)) revert ZeroAddress();
+        holdingManager = _holdingManager;
     }
 
     // -- Staker's operations  --
@@ -77,12 +69,13 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
      * @notice Allows to withdraw a specified amount of tokens to a designated address from Ion Pool.
      * @dev Only accessible by the staking manager and protected against reentrancy.
      *
+     * @param _pool The address of the pool from which to withdraw underlying assets.
      * @param _to Address to which the redeemed underlying asset should be sent to.
      * @param _amount of underlying to redeem for.
      */
-    function unstake(address _to, uint256 _amount) external onlyStakingManager nonReentrant {
-        IIonPool(ionPool).withdraw(_to, _amount);
-        emit Unstaked(msg.sender, _amount);
+    function unstake(address _pool, address _to, uint256 _amount) external override onlyHoldingManager nonReentrant {
+        IIonPool(_pool).withdraw(_to, _amount);
+        emit Unstaked(address(this), _to, _amount);
     }
 
     /**
@@ -101,7 +94,8 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
         bytes calldata _call
     )
         external
-        onlyStakingManager
+        override
+        onlyHoldingManager
         nonReentrant
         returns (bool success, bytes memory result)
     {
