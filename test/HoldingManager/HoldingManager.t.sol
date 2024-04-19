@@ -14,6 +14,7 @@ contract HoldingManagerTest is Test {
     error InvalidAddress();
     error InvocationNotAllowed(address caller);
     error RenouncingDefaultAdminRoleProhibited();
+    error MissingHoldingContractForUser(address user);
 
     // -- Events --
     event HoldingImplementationReferenceUpdated(address indexed _newReference);
@@ -82,6 +83,15 @@ contract HoldingManagerTest is Test {
         holdingManager.grantRole(holdingManager.GENERIC_CALLER_ROLE(), _caller);
         holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), _stakingManager);
         vm.stopPrank();
+
+        //Test if setInvocationAllowance reverts correctly when user doesn't have a holding associated with his address
+        vm.prank(_user, _user);
+        vm.expectRevert(abi.encodeWithSelector(MissingHoldingContractForUser.selector, _user));
+        holdingManager.setInvocationAllowance({
+            _genericCaller: _caller,
+            _callableContract: callableContract,
+            _invocationsAllowance: allowance
+        });
 
         vm.prank(_stakingManager, _stakingManager);
         address holding = holdingManager.createHolding(_user);

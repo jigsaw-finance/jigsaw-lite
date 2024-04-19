@@ -109,6 +109,10 @@ contract StakingManagerForkTest is Test {
             "Wrong rewards paid in Staker after unstake"
         );
         assertEq(staker.rewards(holding), 0, "Wrong rewards in Staker after unstake");
+
+        // Test second stake
+        _stake(_user, _amount);
+        assertEq(staker.balanceOf(holding), _amount, "Wrong balance in Staker after second stake");
     }
 
     // Tests if unstake reverts correctly when there is nothing to withdraw
