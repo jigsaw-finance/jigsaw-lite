@@ -10,7 +10,7 @@
 
 Jigsaw Lite is a protocol designed to incentivize early users of the Jigsaw protocol by rewarding their interactions with the protocol before its full launch.
 
-Utilizing the [Ion protocol](https://ionprotocol.io), Jigsaw Lite offers users the opportunity to earn yield by staking wstETH to Ion's [wstETH/weETH](https://www.app.ionprotocol.io/lend?collateralAsset=weETH&lenderAsset=wstETH&marketId=0) pool.
+Utilizing the [Ion protocol](https://ionprotocol.io), Jigsaw Lite offers users the opportunity to earn yield by staking whitelisted underlying assets to Ion's pools.
 
 Beyond yield generation through the Ion protocol, participants receive rewards in the form of jPoints, the protocol's reward token. These jPoints will later be exchangeable for $Jig tokens, the governance token of Jigsaw.
 
