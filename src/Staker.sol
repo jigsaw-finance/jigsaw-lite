@@ -32,7 +32,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     /**
      * @notice Address of the reward token.
      */
-    address public immutable rewardToken;
+    address public immutable override rewardToken;
 
     /**
      * @notice Address of the staking manager.
@@ -100,7 +100,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @dev Modifier to check if the provided address is valid.
-     * @param _address The address to be checked for validity.
+     * @param _address to be checked for validity.
      */
     modifier validAddress(address _address) {
         if (_address == address(0)) revert InvalidAddress();
@@ -109,7 +109,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @dev Modifier to check if the provided amount is valid.
-     * @param _amount The amount to be checked for validity.
+     * @param _amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
         if (_amount == 0) revert InvalidAmount();
@@ -156,13 +156,99 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         periodFinish = block.timestamp + rewardsDuration;
     }
 
+    // -- Staker's operations  --
+
+    /**
+     * @notice Performs a deposit operation for `_user`.
+     * @dev Updates participants' rewards.
+     *
+     * @param _user to deposit for.
+     * @param _amount to deposit.
+     */
+    function deposit(
+        address _user,
+        uint256 _amount
+    )
+        external
+        override
+        onlyStakingManager
+        whenNotPaused
+        nonReentrant
+        updateReward(_user)
+        validAmount(_amount)
+    {
+        uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
+        if (rewardBalance == 0) revert NoRewardsToDistribute();
+
+        uint256 updatedTotalSupply = _totalSupply + _amount;
+        if (updatedTotalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
+
+        _totalSupply += _amount;
+
+        _balances[_user] += _amount;
+        emit Staked(_user, _amount);
+    }
+
+    /**
+     * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
+     * @dev This function enables the caller to exit the investment and claim their rewards.
+     *
+     *  @param _user to withdraw and claim for.
+     *  @param _to address to which funds will be sent.
+     */
+    function exit(address _user, address _to) external override onlyStakingManager {
+        withdraw(_user, _balances[_user]);
+
+        if (rewards[_user] > 0) {
+            claimRewards(_user, _to);
+        }
+    }
+
+    /**
+     * @notice Withdraws investment from staking.
+     * @dev Updates participants' rewards.
+     *
+     * @param _user to withdraw for.
+     * @param _amount to withdraw.
+     */
+    function withdraw(
+        address _user,
+        uint256 _amount
+    )
+        internal
+        whenNotPaused
+        nonReentrant
+        updateReward(_user)
+        validAmount(_amount)
+    {
+        _totalSupply -= _amount;
+        _balances[_user] = _balances[_user] - _amount;
+        emit Withdrawn(_user, _amount);
+    }
+
+    /**
+     * @notice Claims the rewards for the caller.
+     * @dev This function allows the caller to claim their earned rewards.
+     *
+     *  @param _user to claim rewards for.
+     *  @param _to address to which rewards will be sent.
+     */
+    function claimRewards(address _user, address _to) internal nonReentrant updateReward(_user) {
+        uint256 reward = rewards[_user];
+        if (reward == 0) revert NothingToClaim();
+
+        rewards[_user] = 0;
+        emit RewardPaid(_user, reward);
+        IERC20(rewardToken).safeTransfer(_to, reward);
+    }
+
     // -- Administration --
 
     /**
      * @notice Sets the duration of each reward period.
      * @param _rewardsDuration The new rewards duration.
      */
-    function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
+    function setRewardsDuration(uint256 _rewardsDuration) external override onlyOwner {
         if (block.timestamp <= periodFinish) revert PreviousPeriodNotFinished(block.timestamp, periodFinish);
         rewardsDuration = _rewardsDuration;
         emit RewardsDurationUpdated(rewardsDuration);
@@ -212,15 +298,23 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     /**
      * @dev Triggers stopped state.
      */
-    function pause() external onlyOwner whenNotPaused {
+    function pause() external override onlyOwner whenNotPaused {
         _pause();
     }
 
     /**
      * @dev Returns to normal state.
      */
-    function unpause() external onlyOwner whenPaused {
+    function unpause() external override onlyOwner whenPaused {
         _unpause();
+    }
+
+    /**
+     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
+     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
+     */
+    function renounceOwnership() public pure override {
+        revert RenouncingOwnershipProhibited();
     }
 
     // -- Getters --
@@ -273,99 +367,5 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      */
     function getRewardForDuration() external view override returns (uint256) {
         return rewardRate * rewardsDuration;
-    }
-
-    // -- Staker's operations  --
-
-    /**
-     * @notice Performs a deposit operation for `_user`.
-     * @dev Updates participants' rewards.
-     *
-     * @param _user to deposit for.
-     * @param _amount to deposit.
-     */
-    function deposit(
-        address _user,
-        uint256 _amount
-    )
-        external
-        override
-        onlyStakingManager
-        whenNotPaused
-        nonReentrant
-        updateReward(_user)
-        validAmount(_amount)
-    {
-        uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
-        if (rewardBalance == 0) revert NoRewardsToDistribute();
-
-        uint256 updatedTotalSupply = _totalSupply + _amount;
-        if (updatedTotalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
-
-        _totalSupply += _amount;
-
-        _balances[_user] += _amount;
-        emit Staked(_user, _amount);
-    }
-
-    /**
-     * @notice Withdraws investment from staking.
-     * @dev Updates participants' rewards.
-     *
-     * @param _user to withdraw for.
-     * @param _amount to withdraw.
-     */
-    function withdraw(
-        address _user,
-        uint256 _amount
-    )
-        internal
-        whenNotPaused
-        nonReentrant
-        updateReward(_user)
-        validAmount(_amount)
-    {
-        _totalSupply -= _amount;
-        _balances[_user] = _balances[_user] - _amount;
-        emit Withdrawn(_user, _amount);
-    }
-
-    /**
-     * @notice Claims the rewards for the caller.
-     * @dev This function allows the caller to claim their earned rewards.
-     *
-     *  @param _user to claim rewards for.
-     *  @param _to address to which rewards will be sent.
-     */
-    function claimRewards(address _user, address _to) internal nonReentrant updateReward(_user) {
-        uint256 reward = rewards[_user];
-        if (reward == 0) revert NothingToClaim();
-
-        rewards[_user] = 0;
-        emit RewardPaid(_user, reward);
-        IERC20(rewardToken).safeTransfer(_to, reward);
-    }
-
-    /**
-     * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
-     * @dev This function enables the caller to exit the investment and claim their rewards.
-     *
-     *  @param _user to withdraw and claim for.
-     *  @param _to address to which funds will be sent.
-     */
-    function exit(address _user, address _to) external override onlyStakingManager {
-        withdraw(_user, _balances[_user]);
-
-        if (rewards[_user] > 0) {
-            claimRewards(_user, _to);
-        }
-    }
-
-    /**
-     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
-     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
-     */
-    function renounceOwnership() public pure override {
-        revert RenouncingOwnershipProhibited();
     }
 }
