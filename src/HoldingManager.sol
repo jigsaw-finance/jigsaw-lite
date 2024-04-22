@@ -28,23 +28,23 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
     /**
      * Declaration of the Staking Manager role - privileged actor, allowed to call unstake function on Holdings.
      */
-    bytes32 public constant STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER");
+    bytes32 public constant override STAKING_MANAGER_ROLE = keccak256("STAKING_MANAGER");
 
     /**
      * Declaration of the Generic Caller role - privileged actor, allowed to perform low level calls on Holdings.
      */
-    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
+    bytes32 public constant override GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
+
+    /**
+     * @dev Address of holding implementation to be cloned from.
+     */
+    address public override holdingImplementationReference;
 
     /**
      * @notice Stores a mapping of each user to their holding.
      * @dev returns holding address.
      */
     mapping(address => address) private userHolding;
-
-    /**
-     * @dev Address of holding implementation to be cloned from
-     */
-    address public override holdingImplementationReference;
 
     /**
      * @dev Tracks allowances for each generic caller to invoke contracts via a holding contract.
@@ -72,7 +72,8 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
     }
 
     /**
-     * @dev Sets the allowance for a generic caller to invoke contracts via the holding contract.
+     * @dev Sets the allowance for a generic caller to invoke specified contracts on behalf of the user
+     * through their holding contract.
      *
      * Requirements:
      * - `_genericCaller` must be a valid address.
@@ -81,7 +82,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
      * - The `_genericCaller` must have the `GENERIC_CALLER_ROLE`.
      *
      * Effects:
-     * - Emits an `InvocationSet` event upon successful execution.
+     * - Emits an `InvocationAllowanceSet` event upon successful execution.
      *
      * @param _genericCaller The address of the generic caller.
      * @param _callableContract The address of the contract to be invoked.
@@ -114,18 +115,18 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
 
     /**
      * @notice Creates a new holding instance for the specified `user`.
-     * @dev Clones a new holding contract instance using the reference implementation
-     * and associates it with the `user`'s address.
-     * Emits an event to signify the creation of the holding contract.
-     *  Additionally, initializes the holding contract.
+     * @dev Clones a new holding contract instance using the reference implementation and associates it with the
+     * `user`'s address and initializes the holding contract.
+     * @dev Emits an event to signify the creation of the holding contract.
      *
      * @param _user The address of the user.
+     *
      * @return holding The address of the newly created holding contract.
      */
-    function createHolding(address _user) external onlyRole(STAKING_MANAGER_ROLE) returns (address holding) {
-        // Deploy a new holding contract instance
+    function createHolding(address _user) external override onlyRole(STAKING_MANAGER_ROLE) returns (address holding) {
+        // Create a new holding contract instance
         holding = Clones.clone(holdingImplementationReference);
-        // Associate the new holding contract with msg.sender
+        // Associate the new holding contract with specified `_user`
         userHolding[_user] = holding;
 
         // Emit an event to notify of the creation of the holding contract
@@ -138,7 +139,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
     /**
      * @dev Unstake funds from a the specified Ion Protocol's `_pool` contract for `_holding`.
      *
-     * @param _holding address of the holding contract to unstake for.
+     * @param _holding address to unstake for.
      * @param _pool address of Ion's pool.
      * @param _to The address where unstaked tokens will be sent.
      * @param _amount The amount of tokens to unstake.
@@ -150,6 +151,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
         uint256 _amount
     )
         external
+        override
         onlyRole(STAKING_MANAGER_ROLE)
     {
         IHolding(_holding).unstake(_pool, _to, _amount);
@@ -169,6 +171,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
      *
      * @param _holding The address of the holding contract where the call is invoked.
      * @param _contract The external contract being called by the holding contract.
+     * @param _value The amount of Ether to transfer in the call.
      * @param _call The call data.
      *
      * @return success Indicates whether the call was successful or not.
@@ -177,6 +180,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
     function invokeHolding(
         address _holding,
         address _contract,
+        uint256 _value,
         bytes calldata _call
     )
         external
@@ -196,14 +200,15 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
         holdingToCallerToContractAllowance[_holding][msg.sender][_contract]--;
 
         // Perform the generic call
-        (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _call: _call });
+        (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _value: _value, _call: _call });
     }
 
     /**
-     * @dev Allows the default admin role to set a new holdingImplementationReference.
+     * @dev Allows the Default Admin to set a new address for `holdingImplementationReference` to be cloned from.
      *
      * Requirements:
-     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     * - Caller must have the `DEFAULT_ADMIN_ROLE`.
+     *  - `_newReference` should be valid address.
      *
      * Emits:
      * - `HoldingImplementationReferenceUpdated` event indicating that holding implementation reference
@@ -213,6 +218,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
      */
     function setHoldingImplementationReference(address _newReference)
         external
+        override
         onlyRole(DEFAULT_ADMIN_ROLE)
         validAddress(_newReference)
     {
@@ -222,7 +228,7 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
 
     /**
      * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
-     * @param newAdmin The address of the new admin.
+     * @param newAdmin address of the new admin.
      */
     function beginDefaultAdminTransfer(address newAdmin)
         public
