@@ -61,8 +61,11 @@ abstract contract Fixture is Test {
 
         vm.startPrank(ADMIN, ADMIN);
         holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), address(stakingManager));
-        deal(address(rewardToken), address(staker), 1e6 * 10e18);
-        staker.addRewards(1e6 * 10e18);
+
+        deal(staker.rewardToken(), ADMIN, 1e6 * 10e18);
+        IERC20(staker.rewardToken()).approve(address(staker), 1e6 * 10e18);
+        staker.addRewards(ADMIN, 1e6 * 10e18);
+
         vm.stopPrank();
 
         vm.startPrank(ION_POOL.owner());

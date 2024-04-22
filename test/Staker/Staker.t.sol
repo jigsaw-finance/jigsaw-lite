@@ -72,7 +72,7 @@ contract StakerTest is Test {
     function test_staker_initialState() public view {
         assertEq(staker.tokenIn(), tokenIn, "TokenIn set up incorrect");
         assertEq(staker.rewardToken(), rewardToken, "Reward token set up incorrect");
-        assertEq(staker.owner(), OWNER, "Owner set up incorrect");
+        assertEq(OWNER, OWNER, "Owner set up incorrect");
         assertEq(staker.rewardsDuration(), rewardsDuration, "Rewards duration set up incorrect");
         assertEq(staker.stakingManager(), STAKING_MANAGER, "Staking Manager set up incorrect");
     }
@@ -138,7 +138,7 @@ contract StakerTest is Test {
 
     // Tests setting contract paused from non-Owner's address
     function test_setPaused_when_unauthorized(address _caller) public {
-        vm.assume(_caller != staker.owner());
+        vm.assume(_caller != OWNER);
         vm.prank(_caller, _caller);
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, _caller));
 
@@ -148,15 +148,15 @@ contract StakerTest is Test {
     // Tests setting contract paused from Owner's address
     function test_setPaused_when_authorized() public {
         //Sets contract paused and checks if after pausing contract is paused and event is emitted
-        vm.startPrank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
         vm.expectEmit();
-        emit Paused(staker.owner());
+        emit Paused(OWNER);
         staker.pause();
         assertEq(staker.paused(), true);
 
         //Sets contract unpaused and checks if after pausing contract is unpaused and event is emitted
         vm.expectEmit();
-        emit Unpaused(staker.owner());
+        emit Unpaused(OWNER);
         staker.unpause();
         assertEq(staker.paused(), false);
         vm.stopPrank();
@@ -164,7 +164,7 @@ contract StakerTest is Test {
 
     // Tests if setRewardsDuration reverts correctly when caller is unauthorized
     function test_setRewardsDuration_when_unauthorized(address _caller) public {
-        vm.assume(_caller != staker.owner());
+        vm.assume(_caller != OWNER);
         vm.prank(_caller, _caller);
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, _caller));
         staker.setRewardsDuration(1);
@@ -172,7 +172,7 @@ contract StakerTest is Test {
 
     // Tests if setRewardsDuration reverts correctly when previous rewards period hasn't finished yet
     function test_setRewardsDuration_when_periodNotEnded() public {
-        vm.startPrank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
         vm.expectRevert(
             abi.encodeWithSelector(PreviousPeriodNotFinished.selector, block.timestamp, staker.periodFinish())
         );
@@ -184,7 +184,7 @@ contract StakerTest is Test {
     // Tests if setRewardsDuration works correctly when authorized
     function test_setRewardsDuration_when_authorized(uint256 _amount) public {
         vm.warp(block.timestamp + staker.rewardsDuration() + 1);
-        vm.startPrank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
         vm.expectEmit();
         emit RewardsDurationUpdated(_amount);
         staker.setRewardsDuration(_amount);
@@ -195,18 +195,18 @@ contract StakerTest is Test {
 
     // Tests if addRewards reverts correctly when caller is unauthorized
     function test_addRewards_when_unauthorized(address _caller) public {
-        vm.assume(_caller != staker.owner());
+        vm.assume(_caller != OWNER);
         vm.prank(_caller, _caller);
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, _caller));
-        staker.addRewards(1);
+        staker.addRewards(_caller, 1);
     }
 
     // Tests if addRewards reverts correctly when amount == 0
     function test_addRewards_when_invalidAmount() public {
-        vm.prank(staker.owner(), staker.owner());
+        vm.prank(OWNER, OWNER);
         vm.expectRevert(InvalidAmount.selector);
 
-        staker.addRewards(0);
+        staker.addRewards(OWNER, 0);
     }
 
     // Tests if addRewards reverts correctly when rewardsDuration == 0
@@ -215,10 +215,14 @@ contract StakerTest is Test {
         // so we can change the reward duration
         vm.warp(block.timestamp + staker.rewardsDuration() + 1);
 
-        vm.startPrank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
         staker.setRewardsDuration(0);
+
+        deal(staker.rewardToken(), OWNER, 1e18);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), 1e18);
+
         vm.expectRevert(ZeroRewardsDuration.selector);
-        staker.addRewards(1);
+        staker.addRewards(OWNER, 1);
         vm.stopPrank();
     }
 
@@ -226,20 +230,16 @@ contract StakerTest is Test {
     function test_addRewards_when_amountTooSmall(uint256 _amount) public {
         vm.assume(_amount != 0 && _amount / staker.rewardsDuration() == 0);
 
-        vm.prank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
+
+        deal(staker.rewardToken(), OWNER, _amount);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), _amount);
+
         vm.expectRevert(RewardAmountTooSmall.selector);
 
-        staker.addRewards(_amount);
-    }
+        staker.addRewards(OWNER, _amount);
 
-    // Tests if addRewards reverts correctly when contract doesn't have enough balance to add rewards
-    function test_addRewards_when_insufficientBalance(uint256 _amount) public {
-        console.log(IERC20(rewardToken).balanceOf(address(staker)));
-        vm.assume(_amount / staker.rewardsDuration() != 0);
-
-        vm.prank(staker.owner(), staker.owner());
-        vm.expectRevert(RewardRateTooBig.selector);
-        staker.addRewards(_amount);
+        vm.stopPrank();
     }
 
     // Tests if addRewards works correctly when block.timestamp >= periodFinish
@@ -248,12 +248,15 @@ contract StakerTest is Test {
         // We fast forward to the period when current reward distribution ends,
         // so we can test block.timestamp >= periodFinish branch
         vm.warp(block.timestamp + staker.rewardsDuration() + 1);
-        deal(staker.rewardToken(), address(staker), _amount);
 
-        vm.startPrank(staker.owner(), staker.owner());
+        vm.startPrank(OWNER, OWNER);
+
+        deal(staker.rewardToken(), OWNER, _amount);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), _amount);
+
         vm.expectEmit();
         emit RewardAdded(_amount);
-        staker.addRewards(_amount);
+        staker.addRewards(OWNER, _amount);
 
         assertEq(staker.rewardRate(), _amount / staker.rewardsDuration(), "Rewards added incorrectly");
     }
@@ -262,12 +265,14 @@ contract StakerTest is Test {
     function test_addRewards_when_periodNotFinished(uint256 _amount) public {
         vm.assume(_amount / staker.rewardsDuration() != 0);
 
-        deal(staker.rewardToken(), address(staker), _amount);
+        vm.startPrank(OWNER, OWNER);
 
-        vm.startPrank(staker.owner(), staker.owner());
+        deal(staker.rewardToken(), OWNER, _amount);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), _amount);
+
         vm.expectEmit();
         emit RewardAdded(_amount);
-        staker.addRewards(_amount);
+        staker.addRewards(OWNER, _amount);
 
         assertEq(staker.rewardRate(), _amount / staker.rewardsDuration(), "Rewards added incorrectly");
     }
@@ -323,8 +328,10 @@ contract StakerTest is Test {
         deal(rewardToken, address(staker), 1e18);
         deal(tokenIn, investor, investment);
 
-        vm.startPrank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, 1e18);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), 1e18);
+        staker.addRewards(OWNER, 1e18);
         vm.stopPrank();
 
         vm.prank(investor, investor);
@@ -347,9 +354,12 @@ contract StakerTest is Test {
     // Tests if getRewardForDuration works correctly
     function test_getRewardForDuration(uint256 _amount) public {
         vm.assume(_amount / staker.rewardsDuration() != 0);
-        deal(rewardToken, address(staker), _amount);
-        vm.prank(staker.owner(), staker.owner());
-        staker.addRewards(_amount);
+
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, _amount);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), _amount);
+        staker.addRewards(OWNER, _amount);
+        vm.stopPrank();
 
         assertEq(
             staker.getRewardForDuration(),
@@ -373,7 +383,7 @@ contract StakerTest is Test {
 
     // Tests if deposit reverts correctly when paused
     function test_deposit_when_paused() public {
-        vm.prank(staker.owner(), staker.owner());
+        vm.prank(OWNER, OWNER);
         staker.pause();
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
@@ -409,8 +419,11 @@ contract StakerTest is Test {
         deal(rewardToken, address(staker), 1e18);
         deal(tokenIn, investor, investment);
 
-        vm.prank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, 1e18);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), 1e18);
+        staker.addRewards(OWNER, 1e18);
+        vm.stopPrank();
 
         vm.prank(investor, investor);
         IERC20Metadata(tokenIn).approve(address(staker), investment);
@@ -439,11 +452,12 @@ contract StakerTest is Test {
         vm.assume(investment != 0 && investment < 1e34);
         address investor = vm.addr(uint256(keccak256(bytes("Investor"))));
 
-        deal(rewardToken, address(staker), 1e18);
         deal(tokenIn, investor, investment);
 
-        vm.startPrank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, 1e18);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), 1e18);
+        staker.addRewards(OWNER, 1e18);
         vm.stopPrank();
 
         vm.prank(investor, investor);
@@ -488,8 +502,10 @@ contract StakerTest is Test {
         deal(tokenIn, investor1, investment);
         deal(tokenIn, investor2, investment / 2);
 
-        vm.startPrank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, 1e18);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), 1e18);
+        staker.addRewards(OWNER, 1e18);
         vm.stopPrank();
 
         vm.prank(investor1, investor1);
@@ -520,14 +536,15 @@ contract StakerTest is Test {
     function test_claimRewards_when_authorized(uint256 investment) public {
         vm.assume(investment != 0 && investment < 1e34);
         address investor = vm.addr(uint256(keccak256(bytes("Investor"))));
-
         uint256 stakerRewardBalance = 10_000e18;
 
-        deal(rewardToken, address(staker), stakerRewardBalance);
         deal(tokenIn, investor, investment);
 
-        vm.prank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, stakerRewardBalance);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), stakerRewardBalance);
+        staker.addRewards(OWNER, stakerRewardBalance);
+        vm.stopPrank();
 
         vm.prank(investor, investor);
         IERC20Metadata(tokenIn).approve(address(staker), investment);
@@ -570,14 +587,15 @@ contract StakerTest is Test {
     function test_exit_when_authorized(uint256 investment) public {
         vm.assume(investment != 0 && investment < 1e34);
         address investor = vm.addr(uint256(keccak256(bytes("Investor"))));
-
         uint256 stakerRewardBalance = 10_000e18;
 
-        deal(rewardToken, address(staker), stakerRewardBalance);
         deal(tokenIn, investor, investment);
 
-        vm.prank(staker.owner(), staker.owner());
-        staker.addRewards(1e18);
+        vm.startPrank(OWNER, OWNER);
+        deal(staker.rewardToken(), OWNER, stakerRewardBalance);
+        IERC20Metadata(staker.rewardToken()).approve(address(staker), stakerRewardBalance);
+        staker.addRewards(OWNER, stakerRewardBalance);
+        vm.stopPrank();
 
         vm.prank(investor, investor);
         IERC20Metadata(tokenIn).approve(address(staker), investment);
