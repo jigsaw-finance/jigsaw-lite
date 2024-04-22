@@ -33,7 +33,7 @@ contract StakeHandler is CommonBase, StdCheats, StdUtils {
 
     constructor(StakingManager _stakingManager, address[] memory _users) {
         stakingManager = _stakingManager;
-        ADMIN = stakingManager.defaultAdmin();
+        ADMIN = stakingManager.owner();
         staker = IStaker(stakingManager.staker());
         ionPool = IIonPool(stakingManager.ionPool());
         wstETH = stakingManager.underlyingAsset();
@@ -93,7 +93,7 @@ contract UnstakeHandler is CommonBase, StdCheats, StdUtils {
 
     constructor(StakingManager _stakingManager) {
         stakingManager = _stakingManager;
-        ADMIN = stakingManager.defaultAdmin();
+        ADMIN = stakingManager.owner();
         staker = IStaker(stakingManager.staker());
         ionPool = IIonPool(stakingManager.ionPool());
         wstETH = stakingManager.underlyingAsset();

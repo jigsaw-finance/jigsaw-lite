@@ -125,11 +125,16 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         _;
     }
 
+    // --- Constructor ---
+
     /**
      * @notice Constructor function for initializing the Staker contract.
-     * @param _initialOwner Address of the initial owner.
-     * @param _tokenIn Address of the staking token.
-     * @param _rewardToken Address of the reward token.
+     *
+     * @param _initialOwner The initial owner of the contract
+     * @param _tokenIn The address of the token to be staked
+     * @param _rewardToken The address of the reward token
+     * @param _stakingManager The address of the staking manager contract
+     * @param _rewardsDuration The duration of the rewards period, in seconds
      */
     constructor(
         address _initialOwner,
@@ -138,12 +143,11 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         address _stakingManager,
         uint256 _rewardsDuration
     )
-        validAddress(_initialOwner)
+        Ownable(_initialOwner)
         validAddress(_tokenIn)
         validAddress(_rewardToken)
         validAddress(_stakingManager)
         validAmount(_rewardsDuration)
-        Ownable(_initialOwner)
     {
         tokenIn = _tokenIn;
         rewardToken = _rewardToken;
@@ -279,8 +283,10 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         if (rewardBalance == 0) revert NoRewardsToDistribute();
 
+        uint256 updatedTotalSupply = _totalSupply + _amount;
+        if (updatedTotalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
+
         _totalSupply += _amount;
-        if (_totalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
 
         _balances[_user] += _amount;
         emit Staked(_user, _amount);
@@ -297,9 +303,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         address _user,
         uint256 _amount
     )
-        public
-        override
-        onlyStakingManager
+        internal
         whenNotPaused
         nonReentrant
         updateReward(_user)
@@ -317,16 +321,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      *  @param _user to claim rewards for.
      *  @param _to address to which rewards will be sent.
      */
-    function claimRewards(
-        address _user,
-        address _to
-    )
-        public
-        override
-        onlyStakingManager
-        nonReentrant
-        updateReward(_user)
-    {
+    function claimRewards(address _user, address _to) internal nonReentrant updateReward(_user) {
         uint256 reward = rewards[_user];
         if (reward == 0) revert NothingToClaim();
 

@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
-import { Staker } from "../../src/Staker.sol";
+import { StakerWrapper as Staker } from "../utils/StakerWrapper.sol";
 
 import { IStaker } from "../../src/interfaces/IStaker.sol";
 
@@ -427,17 +427,11 @@ contract StakerTest is Test {
         assertEq(staker.totalSupply(), investment, "Total supply after deposit incorrect");
     }
 
-    // Tests if withdraw reverts correctly when caller is unauthorized
-    function test_withdraw_when_unauthorized() public {
-        vm.expectRevert(UnauthorizedCaller.selector);
-        staker.withdraw(address(1), 1);
-    }
-
     // Tests if withdraw reverts correctly when invalid amount
     function test_withdraw_when_invalidAmount() public {
         vm.prank(staker.stakingManager(), staker.stakingManager());
         vm.expectRevert(InvalidAmount.selector);
-        staker.withdraw(address(1), 0);
+        staker.withdraw_wrapper(address(1), 0);
     }
 
     // Tests if withdraw works correctly when authorized
@@ -462,16 +456,10 @@ contract StakerTest is Test {
         emit Withdrawn(investor, investment);
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
-        staker.withdraw(investor, investment);
+        staker.withdraw_wrapper(investor, investment);
 
         assertEq(staker.balanceOf(investor), 0, "Investor's balance after withdraw incorrect");
         assertEq(staker.totalSupply(), 0, "Total supply after withdraw incorrect");
-    }
-
-    // Tests if claimRewards reverts correctly when caller is unauthorized
-    function test_claimRewards_when_unauthorized() public {
-        vm.expectRevert(UnauthorizedCaller.selector);
-        staker.claimRewards(address(1), address(1));
     }
 
     // Tests if claimRewards reverts correctly when there are no rewards to claim
@@ -481,7 +469,7 @@ contract StakerTest is Test {
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
         vm.expectRevert(NothingToClaim.selector);
-        staker.claimRewards(investor, investor);
+        staker.claimRewards_wrapper(investor, investor);
 
         assertEq(
             IERC20Metadata(rewardToken).balanceOf(investor),

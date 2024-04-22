@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { HoldingManager } from "../../src/HoldingManager.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
 import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
@@ -30,14 +31,16 @@ contract StakingManagerForkTest is Test {
     JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
+    HoldingManager internal holdingManager;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
 
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
-
+        holdingManager = new HoldingManager(ADMIN);
         stakingManager = new StakingManager({
-            _admin: ADMIN,
+            _initialOwner: ADMIN,
+            _holdingManager: address(holdingManager),
             _underlyingAsset: wstETH,
             _rewardToken: address(rewardToken),
             _ionPool: address(ION_POOL),
@@ -47,6 +50,7 @@ contract StakingManagerForkTest is Test {
         staker = IStaker(stakingManager.staker());
 
         vm.startPrank(ADMIN, ADMIN);
+        holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), address(stakingManager));
         deal(address(rewardToken), address(staker), 1e6 * 10e18);
         staker.addRewards(1e6 * 10e18);
         vm.stopPrank();
@@ -105,6 +109,10 @@ contract StakingManagerForkTest is Test {
             "Wrong rewards paid in Staker after unstake"
         );
         assertEq(staker.rewards(holding), 0, "Wrong rewards in Staker after unstake");
+
+        // Test second stake
+        _stake(_user, _amount);
+        assertEq(staker.balanceOf(holding), _amount, "Wrong balance in Staker after second stake");
     }
 
     // Tests if unstake reverts correctly when there is nothing to withdraw
@@ -114,34 +122,6 @@ contract StakingManagerForkTest is Test {
         vm.prank(address(0), address(0));
         vm.expectRevert(abi.encodeWithSelector(NothingToWithdrawFromIon.selector, address(0)));
         stakingManager.unstake(address(1));
-    }
-
-    // Tests if invokeHolding reverts correctly when unauthorized
-    function test_invokeHolding_when_unauthorized() public {
-        address caller = address(uint160(uint256(keccak256("random caller"))));
-        address holding = address(uint160(uint256(keccak256("random holding"))));
-        address callableContract = address(uint160(uint256(keccak256("random contract"))));
-
-        vm.prank(caller, caller);
-        vm.expectRevert();
-        stakingManager.invokeHolding(holding, callableContract, bytes(""));
-    }
-
-    // Tests if invokeHolding works correctly when authorized
-    function test_invokeHolding_when_authorized() public {
-        address user = USER;
-        uint256 _amount = 1e18;
-
-        address genericCaller = address(uint160(uint256(keccak256("generic caller"))));
-        address holding = _stake(user, _amount);
-        address callableContract = wstETH;
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.grantRole(keccak256("GENERIC_CALLER"), genericCaller);
-
-        vm.prank(genericCaller, genericCaller);
-        (bool success,) = stakingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
-        assertEq(success, true, "invokeHolding failed");
     }
 
     modifier validAmount(uint256 _amount) {

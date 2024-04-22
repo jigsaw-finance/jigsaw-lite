@@ -8,6 +8,7 @@ import { IIonPool } from "../../test/utils/IIonPool.sol";
 
 import { BaseScript } from "./Base.s.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
+import { IHoldingManager } from "../../src/interfaces/IHoldingManager.sol";
 
 contract DeployStakingManagerScript is BaseScript {
     using StdJson for string;
@@ -15,19 +16,22 @@ contract DeployStakingManagerScript is BaseScript {
     string configPath = "./deployment-config/StakingManagerConfig.json";
     string config = vm.readFile(configPath);
 
-    address DEFAULT_ADMIN = config.readAddress(".initialDefaultAdmin");
+    address INITIAL_OWNER = config.readAddress(".initialDefaultAdmin");
+    address HOLDING_MANAGER = config.readAddress(".holdingManager");
     address UNDERLYING = config.readAddress(".underlyingAsset");
     address REWARD_TOKEN = config.readAddress(".jPointsAddress");
     address ION_POOL = config.readAddress(".ionPool");
     uint256 REWARDS_DURATION = config.readUint(".rewardsDuration");
 
     function run() external broadcast returns (StakingManager stakingManager) {
+        _validateInterface(IHoldingManager(HOLDING_MANAGER));
         _validateInterface(IIonPool(ION_POOL));
         _validateInterface(IERC20(UNDERLYING));
         _validateInterface(IERC20(REWARD_TOKEN));
 
         stakingManager = new StakingManager({
-            _admin: DEFAULT_ADMIN,
+            _initialOwner: INITIAL_OWNER,
+            _holdingManager: HOLDING_MANAGER,
             _underlyingAsset: UNDERLYING,
             _rewardToken: REWARD_TOKEN,
             _ionPool: ION_POOL,

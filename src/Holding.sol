@@ -12,38 +12,46 @@ import { IIonPool } from "./interfaces/IIonPool.sol";
 /**
  * @title Holding Contract
  *
- * @dev This contract serves as the implementation for clones used in StakingManager Contract.
+ * @dev This contract acts as the implementation for clones utilized in the StakingManager Contract,
+ * facilitating the management of user's staked assets and  staking operations.
  *
  * This contract is responsible for managing staking operations within the Jigsaw lite protocol.
  * Stakers can deposit tokens into the Ion Pool and withdraw them on behalf of the Holding.
  * Additionally, the contract allows for executing generic calls to interact with other contracts,
  * with restrictions to ensure security and integrity of the protocol.
  *
- * This contract inherits the following:
- * - ReentrancyGuard: A contract module that helps prevent reentrancy attacks by utilizing mutex locks.
- * - Initializable: A contract module that provides a mechanism for initializing contracts post-deployment.
+ * This contract inherits functionalities from `ReentrancyGuard` and `Initializable`.
  *
  * This contract implements the IHolding interface, defining the functions required by the Jigsaw protocol.
  *
  * @author Hovooo (@hovooo)
+ *
+ * @custom:security-contact support@jigsaw.finance
  */
 contract Holding is IHolding, ReentrancyGuard, Initializable {
     using SafeERC20 for IERC20;
 
     /**
-     * @dev Address of the Staking Manager contract.
+     * @dev Address of the Holding Manager contract.
      */
-    address public stakingManager;
-
-    /**
-     * @dev Address of the Ion Pool contract.
-     */
-    address public ionPool;
+    address public holdingManager;
 
     // --- Modifiers ---
 
-    modifier onlyStakingManager() {
-        if (msg.sender != stakingManager) revert UnauthorizedCaller();
+    /**
+     * @dev Modifier to restrict access to only the holding manager.
+     */
+    modifier onlyHoldingManager() {
+        if (msg.sender != holdingManager) revert UnauthorizedCaller();
+        _;
+    }
+
+    /**
+     * @dev Modifier to check if the provided address is valid.
+     * @param _address to be checked for validity.
+     */
+    modifier validAddress(address _address) {
+        if (_address == address(0)) revert InvalidAddress();
         _;
     }
 
@@ -61,28 +69,26 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
 
     /**
      * @dev Initializes the contract (instead of a constructor) to be cloned.
-     * @param _stakingManager The address of the contract handling staking operations.
-     * @param _ionPool Address of the Ion Pool contract.
+     * @param _holdingManager The address of the contract handling staking operations.
      */
-    function init(address _stakingManager, address _ionPool) external initializer {
-        if (_ionPool == address(0)) revert ZeroAddress();
-        if (_stakingManager == address(0)) revert ZeroAddress();
-        stakingManager = _stakingManager;
-        ionPool = _ionPool;
+    function init(address _holdingManager) external initializer validAddress(_holdingManager) {
+        holdingManager = _holdingManager;
     }
 
     // -- Staker's operations  --
 
     /**
      * @notice Allows to withdraw a specified amount of tokens to a designated address from Ion Pool.
-     * @dev Only accessible by the staking manager and protected against reentrancy.
      *
+     * @dev Only accessible by the Holding Manager and protected against reentrancy.
+     *
+     * @param _pool The address of the pool from which to withdraw underlying assets.
      * @param _to Address to which the redeemed underlying asset should be sent to.
      * @param _amount of underlying to redeem for.
      */
-    function unstake(address _to, uint256 _amount) external onlyStakingManager nonReentrant {
-        IIonPool(ionPool).withdraw(_to, _amount);
-        emit Unstaked(msg.sender, _amount);
+    function unstake(address _pool, address _to, uint256 _amount) external override onlyHoldingManager nonReentrant {
+        IIonPool(_pool).withdraw(_to, _amount);
+        emit Unstaked(address(this), _to, _amount);
     }
 
     /**
@@ -91,6 +97,7 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
      * aimed at mitigating potential risks associated with unauthorized calls.
      *
      * @param _contract The address of the target contract for the call.
+     * @param _value The amount of Ether to transfer in the call.
      * @param _call ABI-encoded data representing the call to be made.
      *
      * @return success A boolean indicating whether the call was successful or not.
@@ -98,13 +105,15 @@ contract Holding is IHolding, ReentrancyGuard, Initializable {
      */
     function genericCall(
         address _contract,
+        uint256 _value,
         bytes calldata _call
     )
         external
-        onlyStakingManager
+        override
+        onlyHoldingManager
         nonReentrant
         returns (bool success, bytes memory result)
     {
-        (success, result) = _contract.call(_call);
+        (success, result) = _contract.call{ value: _value }(_call);
     }
 }

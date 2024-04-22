@@ -3,15 +3,20 @@ pragma solidity ^0.8.20;
 
 //Ion Pool Mock for testing deployment and interface verification
 contract IonPool {
-    function balanceOf(address user) external view returns (uint256) {
-        return 1e18;
+    uint256 val;
+    address addr;
+
+    function balanceOf(address) external view returns (uint256) {
+        return val;
     }
 
     function debt() external view returns (uint256) {
-        return 0;
+        return val;
     }
 
-    function getIlkAddress(uint256 ilkIndex) external view returns (address) {
-        return address(1);
+    function getIlkAddress(uint256) external view returns (address) {
+        return addr;
     }
+
+    function supply(address user, uint256 amount, bytes32[] calldata proof) external { }
 }

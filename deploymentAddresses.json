@@ -1,11 +1,13 @@
 {
   "ANVIL": {
     "jPointsAddress": "0xe1a0571c5CF0a9f86d40f9a86c908a9480Cb8431",
-    "stakingManagerAddress": "0xe1a0571c5CF0a9f86d40f9a86c908a9480Cb8431"
+    "stakingManagerAddress": "0xce79BCB6Ca09C5F9939b22Bd37498781476264CC",
+    "holdingManager": "0xe1a0571c5CF0a9f86d40f9a86c908a9480Cb8431"
   },
   "SEPOLIA": {
-    "jPointsAddress": "0x3C5473994E7C3379bCC73f3E6360F56c101f57fA",
-    "stakingManagerAddress": "0x2D3969801b34419316b25d588f86767C7bEC7374",
-    "ionPoolMock": "0x60E0a0941B3F26F9FE6926a1c7EcD0EB9E181160"
+    "jPointsAddress": "0xd4ad027085B0F82B0E7D7b6D67d195B6C8b074a9",
+    "stakingManagerAddress": "0x5B41Fe5F60a37073a491F6Af7AdCE3440Fc7abb6",
+    "ionPoolMock": "0x60E0a0941B3F26F9FE6926a1c7EcD0EB9E181160",
+    "holdingManager": "0xbc5a8d9BC7E4A8E307dbfC30bC27b27221448C79"
   }
 }

@@ -1,55 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { AccessControlDefaultAdminRules } from
-    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
 
-import { IHolding } from "./interfaces/IHolding.sol";
+import { IHoldingManager } from "./interfaces/IHoldingManager.sol";
 import { IIonPool } from "./interfaces/IIonPool.sol";
-import { IStakerManager } from "./interfaces/IStakerManager.sol";
+import { IStakingManager } from "./interfaces/IStakingManager.sol";
 import { IStaker } from "./interfaces/IStaker.sol";
 
 /**
  * @title StakingManager
  *
- * @notice Manages the distribution of rewards to early users of Jigsaw by staking Lido's wstETH tokens.
- * @notice wstETH tokens are staked through this contract and deposited into the Ion protocol's Pool contract to
- * generate yield.
- * @notice Additionally, stakers farm jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
+ * @notice Manages the distribution of rewards to early users of Jigsaw by facilitating staking of underlying assets.
+ * @notice Staked assets are deposited into Ion Pool contracts to generate yield and earn jPoints, redeemable for
+ * governance $JIG tokens.
+ * @notice For more information on Ion Protocol, visit https://ionprotocol.io.
  *
- * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `AccessControlDefaultAdminRules`.
+ * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `Ownable2Step`.
  *
  * @author Hovooo (@hovooo)
  *
  * @custom:security-contact support@jigsaw.finance
  */
-contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessControlDefaultAdminRules {
+contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     /**
-     * Declaration of the Generic Caller role - privileged actor, allowed to perform low level calls on Holdings.
+     * @dev Address of the Holding Manager contract.
+     * @dev The Holding Manager is responsible for creating and managing user Holdings.
      */
-    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
-
-    /**
-     * @notice Stores a mapping of each user to their holding.
-     * @dev returns holding address.
-     */
-    mapping(address => address) private userHolding;
-
-    /**
-     * @dev Address of holding implementation to be cloned from
-     */
-    address public override holdingImplementationReference;
+    IHoldingManager public immutable override holdingManager;
 
     /**
      * @dev Address of the underlying asset used for staking.
@@ -73,8 +60,9 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @dev Represents the expiration date for the staking lockup period.
-     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
-     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * After this date, staked funds can be withdrawn.
+     * @notice If not withdrawn will continue to generate rewards in `underlyingAsset` and,
+     * if applicable, additional jPoints as long as staked.
      *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
@@ -84,7 +72,7 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @dev Modifier to check if the provided amount is valid.
-     * @param _amount The amount to be checked for validity.
+     * @param _amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
         if (_amount == 0) revert InvalidAmount();
@@ -93,56 +81,60 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
 
     /**
      * @dev Modifier to check if the provided address is valid.
-     * @param _address The address to be checked for validity.
+     * @param _address to be checked for validity.
      */
     modifier validAddress(address _address) {
         if (_address == address(0)) revert InvalidAddress();
         _;
     }
 
+    // --- Constructor ---
+
     /**
      * @dev Constructor function for initializing the StakerManager contract.
+     *
+     * @param _initialOwner Address of the initial owner.
+     * @param _holdingManager Address of the holding manager contract.
      * @param _underlyingAsset Address of the underlying asset used for staking.
-     * @param _ionPool Address of the ionPool contract.
+     * @param _rewardToken Address of the reward token.
+     * @param _ionPool Address of the IonPool contract.
+     * @param _rewardsDuration Duration of the rewards period.
      */
     constructor(
-        address _admin,
+        address _initialOwner,
+        address _holdingManager,
         address _underlyingAsset,
         address _rewardToken,
         address _ionPool,
         uint256 _rewardsDuration
     )
-        AccessControlDefaultAdminRules(
-            2 days,
-            _admin // Explicit initial `DEFAULT_ADMIN_ROLE` holder
-        )
-        validAddress(_admin)
+        Ownable(_initialOwner)
+        validAddress(_holdingManager)
         validAddress(_underlyingAsset)
         validAddress(_rewardToken)
         validAddress(_ionPool)
         validAmount(_rewardsDuration)
     {
+        holdingManager = IHoldingManager(_holdingManager);
         underlyingAsset = _underlyingAsset;
         rewardToken = _rewardToken;
         ionPool = _ionPool;
         staker = address(
             new Staker({
-                _initialOwner: _admin,
+                _initialOwner: _initialOwner,
                 _tokenIn: _underlyingAsset,
                 _rewardToken: _rewardToken,
                 _stakingManager: address(this),
                 _rewardsDuration: _rewardsDuration
             })
         );
-        holdingImplementationReference = address(new Holding());
         lockupExpirationDate = block.timestamp + _rewardsDuration;
     }
 
     /**
      * @notice Stakes a specified amount of assets for the msg.sender.
-     * @dev Initiates the staking operation by transferring the specified `_amount`
-     * from the user's wallet to the contract, while simultaneously recording this deposit within the Jigsaw Staking
-     * Contract.
+     * @dev Initiates the staking operation by transferring the specified `_amount` from the user's wallet to the
+     * contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
      *
      * Requirements:
      * - The caller must have sufficient assets to stake.
@@ -151,21 +143,20 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      *
      * Effects:
      * - If the user does not have an existing holding, a new holding is created for the user.
-     * - Emits a `Staked` event indicating the staking action.
      * - Supplies the specified amount of underlying asset to the Ion Pool to earn interest.
      * - Tracks the deposit in the Staker contract to earn jPoints for staking.
      *
      * Emits:
      * - `Staked` event indicating the staking action.
      *
-     * @param _amount The amount of assets to stake.
+     * @param _amount of assets to stake.
      */
     function stake(uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) {
-        address holding = userHolding[msg.sender];
-
         // Create a holding for msg.sender if there is no holding associated with their address yet.
-        if (holding == address(0)) holding = _createHolding();
+        address holding = holdingManager.getUserHolding(msg.sender);
+        if (holding == address(0)) holding = holdingManager.createHolding(msg.sender);
 
+        // Emit an event indicating the staking action
         emit Staked(msg.sender, _amount);
 
         // Transfer assets from the user's wallet to this contract.
@@ -180,84 +171,58 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
     }
 
     /**
-     * @notice Withdraws a all staked assets.
+     * @notice Performs unstake operation.
      *
-     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated rewards
-     * from the Ion Pool contract to the designated recipient `_to`.
+     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated yield from
+     * the Ion Pool contract and earned jPoint rewards from Staker contract to the designated recipient `_to`.
      *
      * Requirements:
-     * - The caller must have sufficient staked assets to fulfill the withdrawal.
+     * - The `lockupExpirationDate` should have already expired.
+     * - The caller must possess sufficient staked assets to fulfill the withdrawal.
      * - The `_to` address must be a valid Ethereum address.
      *
-     * @param _to The address to receive the unstaked assets.
+     * @param _to address to receive the unstaked assets.
      */
     function unstake(address _to) external override nonReentrant whenNotPaused validAddress(_to) {
+        // Check if the lockup expiration date has passed.
         if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
-        address holding = userHolding[msg.sender];
+        // Get the holding address of the caller.
+        address holding = holdingManager.getUserHolding(msg.sender);
 
+        // If the caller has no balance in the Ion Pool, revert with `NothingToWithdrawFromIon` error.
         uint256 ionPoolBalance = IIonPool(ionPool).balanceOf(holding);
         if (ionPoolBalance == 0) revert NothingToWithdrawFromIon(msg.sender);
 
+        // Emit an event indicating the unstaking action.
         emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
-        IHolding(holding).unstake({ _to: _to, _amount: ionPoolBalance });
+        // Unstake assets and withdraw rewards and transfer them to the specified address.
+        holdingManager.unstake({ _holding: holding, _pool: ionPool, _to: _to, _amount: ionPoolBalance });
         IStaker(staker).exit({ _user: holding, _to: _to });
     }
 
     // --- Administration ---
 
     /**
-     * @notice Invokes a generic call on a holding contract.
-     *
-     * @dev This function is restricted to be called only by GENERIC_CALLER role
-     *
-     * @param _holding The address of the holding contract where the call is invoked.
-     * @param _contract The external contract being called by the holding contract.
-     * @param _call The call data.
-     *
-     * @return success Indicates whether the call was successful or not.
-     * @return result Data obtained from the external call.
-     */
-    function invokeHolding(
-        address _holding,
-        address _contract,
-        bytes calldata _call
-    )
-        external
-        override
-        validAddress(_holding)
-        validAddress(_contract)
-        onlyRole(GENERIC_CALLER_ROLE)
-        nonReentrant
-        returns (bool success, bytes memory result)
-    {
-        (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _call: _call });
-    }
-
-    /**
      * @dev Triggers stopped state.
      */
-    function pause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function pause() external override onlyOwner whenNotPaused {
         _pause();
     }
 
     /**
      * @dev Returns to normal state.
      */
-    function unpause() external override onlyRole(DEFAULT_ADMIN_ROLE) whenPaused {
+    function unpause() external override onlyOwner whenPaused {
         _unpause();
     }
 
     /**
-     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
+     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
      */
-    function beginDefaultAdminTransfer(address newAdmin)
-        public
-        override(AccessControlDefaultAdminRules, IStakerManager)
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
-        _beginDefaultAdminTransfer(newAdmin);
+    function renounceOwnership() public pure override(IStakingManager, Ownable) {
+        revert RenouncingOwnershipProhibited();
     }
 
     /**
@@ -271,30 +236,9 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      *
      * @param _newDate The new lockup expiration date to be set.
      */
-    function setLockupExpirationDate(uint256 _newDate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setLockupExpirationDate(uint256 _newDate) external onlyOwner {
         emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
         lockupExpirationDate = _newDate;
-    }
-
-    /**
-     * @dev Allows the default admin role to set a new holdingImplementationReference.
-     *
-     * Requirements:
-     * - Caller must have the DEFAULT_ADMIN_ROLE.
-     *
-     * Emits:
-     * - `HoldingImplementationReferenceUpdated` event indicating that holding implementation reference
-     * has been updated.
-     *
-     * @param _newReference The address of the new implementation reference.
-     */
-    function setHoldingImplementationReference(address _newReference)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        validAddress(_newReference)
-    {
-        emit HoldingImplementationReferenceUpdated(_newReference);
-        holdingImplementationReference = _newReference;
     }
 
     // --- Getters ---
@@ -305,29 +249,6 @@ contract StakingManager is IStakerManager, Pausable, ReentrancyGuard, AccessCont
      * @return the holding address.
      */
     function getUserHolding(address _user) external view override returns (address) {
-        return userHolding[_user];
-    }
-
-    // --- Helpers ---
-
-    /**
-     * @notice Creates a new holding instance for the msg.sender.
-     * @dev Clones a new holding contract instance using the reference implementation
-     * and associates it with the caller's address. Emits an event to signify the creation
-     * of the holding contract. Additionally, initializes the holding contract.
-     *
-     * @return newHoldingAddress The address of the newly created holding contract.
-     */
-    function _createHolding() private returns (address newHoldingAddress) {
-        // Deploy a new holding contract instance
-        newHoldingAddress = Clones.clone(holdingImplementationReference);
-        // Associate the new holding contract with msg.sender
-        userHolding[msg.sender] = newHoldingAddress;
-
-        // Emit an event to notify of the creation of the holding contract
-        emit HoldingCreated(msg.sender, newHoldingAddress);
-
-        // Initialize the newly created holding contract
-        IHolding(newHoldingAddress).init({ _stakingManager: address(this), _ionPool: ionPool });
+        return holdingManager.getUserHolding(_user);
     }
 }
