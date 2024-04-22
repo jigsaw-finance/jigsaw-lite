@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
-import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { Holding } from "./Holding.sol";
 import { Staker } from "./Staker.sol";
 
-import { IHolding } from "./interfaces/IHolding.sol";
 import { IHoldingManager } from "./interfaces/IHoldingManager.sol";
 import { IIonPool } from "./interfaces/IIonPool.sol";
 import { IStakingManager } from "./interfaces/IStakingManager.sol";
@@ -22,10 +18,10 @@ import { IStaker } from "./interfaces/IStaker.sol";
 /**
  * @title StakingManager
  *
- * @notice Manages the distribution of rewards to early users of Jigsaw by staking Lido's wstETH tokens.
- * @notice wstETH tokens are staked through this contract and deposited into the Ion protocol's Pool contract to
- * generate yield.
- * @notice Additionally, stakers farm jPoints, which will later be exchanged for Jigsaw's governance $JIG tokens.
+ * @notice Manages the distribution of rewards to early users of Jigsaw by facilitating staking of underlying assets.
+ * @notice Staked assets are deposited into Ion Pool contracts to generate yield and earn jPoints, redeemable for
+ * governance $JIG tokens.
+ * @notice For more information on Ion Protocol, visit https://ionprotocol.io.
  *
  * @dev This contract inherits functionalities from `Pausable`, `ReentrancyGuard`, and `Ownable2Step`.
  *
@@ -37,7 +33,8 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     using SafeERC20 for IERC20;
 
     /**
-     * @dev Address of the Holding Manager Contract
+     * @dev Address of the Holding Manager contract.
+     * @dev The Holding Manager is responsible for creating and managing user Holdings.
      */
     IHoldingManager public immutable override holdingManager;
 
@@ -63,8 +60,9 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
 
     /**
      * @dev Represents the expiration date for the staking lockup period.
-     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
-     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * After this date, staked funds can be withdrawn.
+     * @notice If not withdrawn will continue to generate rewards in `underlyingAsset` and,
+     * if applicable, additional jPoints as long as staked.
      *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
@@ -74,7 +72,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
 
     /**
      * @dev Modifier to check if the provided amount is valid.
-     * @param _amount The amount to be checked for validity.
+     * @param _amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
         if (_amount == 0) revert InvalidAmount();
@@ -83,7 +81,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
 
     /**
      * @dev Modifier to check if the provided address is valid.
-     * @param _address The address to be checked for validity.
+     * @param _address to be checked for validity.
      */
     modifier validAddress(address _address) {
         if (_address == address(0)) revert InvalidAddress();
@@ -94,9 +92,9 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
      * @dev Constructor function for initializing the StakerManager contract.
      *
      * @param _initialOwner Address of the initial owner.
+     * @param _holdingManager Address of the holding manager contract.
      * @param _underlyingAsset Address of the underlying asset used for staking.
      * @param _rewardToken Address of the reward token.
-     * @param _holdingManager Address of the holding manager contract.
      * @param _ionPool Address of the IonPool contract.
      * @param _rewardsDuration Duration of the rewards period.
      */
@@ -109,8 +107,8 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
         uint256 _rewardsDuration
     )
         Ownable(_initialOwner)
-        validAddress(_underlyingAsset)
         validAddress(_holdingManager)
+        validAddress(_underlyingAsset)
         validAddress(_rewardToken)
         validAddress(_ionPool)
         validAmount(_rewardsDuration)
@@ -133,9 +131,8 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
 
     /**
      * @notice Stakes a specified amount of assets for the msg.sender.
-     * @dev Initiates the staking operation by transferring the specified `_amount`
-     * from the user's wallet to the contract, while simultaneously recording this deposit within the Jigsaw Staking
-     * Contract.
+     * @dev Initiates the staking operation by transferring the specified `_amount` from the user's wallet to the
+     * contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
      *
      * Requirements:
      * - The caller must have sufficient assets to stake.
@@ -150,13 +147,14 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
      * Emits:
      * - `Staked` event indicating the staking action.
      *
-     * @param _amount The amount of assets to stake.
+     * @param _amount of assets to stake.
      */
     function stake(uint256 _amount) external override nonReentrant whenNotPaused validAmount(_amount) {
         // Create a holding for msg.sender if there is no holding associated with their address yet.
         address holding = holdingManager.getUserHolding(msg.sender);
         if (holding == address(0)) holding = holdingManager.createHolding(msg.sender);
 
+        // Emit an event indicating the staking action
         emit Staked(msg.sender, _amount);
 
         // Transfer assets from the user's wallet to this contract.
@@ -171,27 +169,32 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     }
 
     /**
-     * @notice Withdraws a all staked assets.
+     * @notice Performs unstake operation.
      *
-     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated rewards
-     * from the Ion Pool contract to the designated recipient `_to`.
+     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated yield from
+     * the Ion Pool contract and earned jPoint rewards from Staker contract to the designated recipient `_to`.
      *
      * Requirements:
-     * - The caller must have sufficient staked assets to fulfill the withdrawal.
+     * - The `lockupExpirationDate` should have already expired.
+     * - The caller must possess sufficient staked assets to fulfill the withdrawal.
      * - The `_to` address must be a valid Ethereum address.
      *
-     * @param _to The address to receive the unstaked assets.
+     * @param _to address to receive the unstaked assets.
      */
     function unstake(address _to) external override nonReentrant whenNotPaused validAddress(_to) {
+        // Check if the lockup expiration date has passed.
         if (lockupExpirationDate > block.timestamp) revert PreLockupPeriodUnstaking();
-
+        // Get the holding address of the caller.
         address holding = holdingManager.getUserHolding(msg.sender);
 
+        // If the caller has no balance in the Ion Pool, revert with `NothingToWithdrawFromIon` error.
         uint256 ionPoolBalance = IIonPool(ionPool).balanceOf(holding);
         if (ionPoolBalance == 0) revert NothingToWithdrawFromIon(msg.sender);
 
+        // Emit an event indicating the unstaking action.
         emit Unstaked(msg.sender, IStaker(staker).balanceOf(holding));
 
+        // Unstake assets and withdraw rewards and transfer them to the specified address.
         holdingManager.unstake({ _holding: holding, _pool: ionPool, _to: _to, _amount: ionPoolBalance });
         IStaker(staker).exit({ _user: holding, _to: _to });
     }
@@ -216,7 +219,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
      * @notice Renounce ownership override to prevent accidental loss of contract ownership.
      * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
      */
-    function renounceOwnership() public pure override {
+    function renounceOwnership() public pure override(IStakingManager, Ownable) {
         revert RenouncingOwnershipProhibited();
     }
 

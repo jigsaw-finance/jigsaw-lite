@@ -16,7 +16,7 @@ interface IStakingManager {
     error RenouncingOwnershipProhibited();
 
     /**
-     * @dev The operation failed because amount is zero.
+     * @dev The operation failed because amount is invalid.
      */
     error InvalidAmount();
 
@@ -31,7 +31,8 @@ interface IStakingManager {
     error PreLockupPeriodUnstaking();
 
     /**
-     * @dev The operation failed because caller's holding's balance in Ion Pool is zero.
+     * @dev The operation failed because caller's holding balance in the Ion Pool is zero.
+     * @param caller address whose holding balance is zero.
      */
     error NothingToWithdrawFromIon(address caller);
 
@@ -54,7 +55,8 @@ interface IStakingManager {
     event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
 
     /**
-     * @notice Returns the HoldingManager.
+     * @notice Address of the Holding Manager contract.
+     * @dev The Holding Manager is responsible for creating and managing user Holdings.
      */
     function holdingManager() external view returns (IHoldingManager);
 
@@ -80,35 +82,48 @@ interface IStakingManager {
 
     /**
      * @dev Represents the expiration date for the staking lockup period.
-     * After this date, staked funds can be withdrawn. If not withdrawn will continue to
-     * generate wstETH rewards and, if applicable, additional jPoints as long as staked.
+     * After this date, staked funds can be withdrawn.
+     * @notice If not withdrawn will continue to generate rewards in `underlyingAsset` and,
+     * if applicable, additional jPoints as long as staked.
+     *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
     function lockupExpirationDate() external view returns (uint256);
 
     /**
      * @notice Stakes a specified amount of assets for the msg.sender.
-     * @dev Initiates the staking operation by depositing the specified `_amount`
-     * into the Ion Pool contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
+     * @dev Initiates the staking operation by transferring the specified `_amount` from the user's wallet to the
+     * contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
      *
      * Requirements:
      * - The caller must have sufficient assets to stake.
      * - The Ion Pool Contract's supply cap should not exceed its limit after the user's stake operation.
+     * - Prior approval is required for this contract to transfer assets on behalf of the user.
      *
-     * @param _amount The amount of assets to stake.
+     * Effects:
+     * - If the user does not have an existing holding, a new holding is created for the user.
+     * - Supplies the specified amount of underlying asset to the Ion Pool to earn interest.
+     * - Tracks the deposit in the Staker contract to earn jPoints for staking.
+     *
+     * Emits:
+     * - `Staked` event indicating the staking action.
+     *
+     * @param _amount of assets to stake.
      */
     function stake(uint256 _amount) external;
 
     /**
-     * @notice Withdraws a specified amount of staked assets.
-     * @dev Initiates the withdrawal of staked assets by transferring the specified `_amount`
-     * from the Ion Pool contract to the designated recipient `_to`.
+     * @notice Performs unstake operation.
+     *
+     * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated yield from
+     * the Ion Pool contract and earned jPoint rewards from Staker contract to the designated recipient `_to`.
      *
      * Requirements:
-     * - The caller must have sufficient staked assets to fulfill the withdrawal.
+     * - The `lockupExpirationDate` should have already expired.
+     * - The caller must possess sufficient staked assets to fulfill the withdrawal.
      * - The `_to` address must be a valid Ethereum address.
      *
-     * @param _to The address to receive the unstaked assets.
+     * @param _to address to receive the unstaked assets.
      */
     function unstake(address _to) external;
 
@@ -129,6 +144,25 @@ interface IStakingManager {
      * - The contract must be paused.
      */
     function unpause() external;
+
+    /**
+     * @notice Renounce ownership override to prevent accidental loss of contract ownership.
+     * @dev This function ensures that the contract's ownership cannot be lost unintentionally.
+     */
+    function renounceOwnership() external pure;
+
+    /**
+     * @dev Allows the default admin role to set a new lockup expiration date.
+     *
+     * Requirements:
+     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     *
+     * Emits:
+     * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated.
+     *
+     * @param _newDate The new lockup expiration date to be set.
+     */
+    function setLockupExpirationDate(uint256 _newDate) external;
 
     /**
      * @dev Get the address of the holding associated with the user.
