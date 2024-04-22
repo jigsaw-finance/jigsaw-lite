@@ -210,24 +210,6 @@ interface IStaker {
     function deposit(address _user, uint256 _amount) external;
 
     /**
-     * @notice Withdraws investment from staking.
-     * @dev Updates participants' rewards.
-     *
-     * @param _user to withdraw for.
-     * @param _amount to withdraw.
-     */
-    function withdraw(address _user, uint256 _amount) external;
-
-    /**
-     * @notice Claims the rewards for the caller.
-     * @dev This function allows the caller to claim their earned rewards.
-     *
-     *  @param _user to claim rewards for.
-     *  @param _to address to which rewards will be sent.
-     */
-    function claimRewards(address _user, address _to) external;
-
-    /**
      * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
      * @dev This function enables the caller to exit the investment and claim their rewards.
      *
