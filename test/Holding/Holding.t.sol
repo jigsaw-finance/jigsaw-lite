@@ -9,7 +9,7 @@ import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Holding } from "../../src/Holding.sol";
 
 contract StakingManagerForkTest is Test {
-    error ZeroAddress();
+    error InvalidAddress();
 
     address internal holdingReferenceImplementation;
 
@@ -21,7 +21,7 @@ contract StakingManagerForkTest is Test {
     function test_init_when_invalidInitParams() public {
         address newHolding = Clones.clone(holdingReferenceImplementation);
 
-        vm.expectRevert(ZeroAddress.selector);
+        vm.expectRevert(InvalidAddress.selector);
         Holding(newHolding).init({ _holdingManager: address(0) });
     }
 }

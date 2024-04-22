@@ -41,7 +41,7 @@ contract HoldingManagerTest is Test {
                 AccessControlUnauthorizedAccount.selector, _caller, holdingManager.GENERIC_CALLER_ROLE()
             )
         );
-        holdingManager.invokeHolding(holding, ERC20Mock, bytes(""));
+        holdingManager.invokeHolding(holding, ERC20Mock, 0, bytes(""));
 
         vm.stopPrank();
     }
@@ -61,7 +61,7 @@ contract HoldingManagerTest is Test {
 
         vm.prank(_caller, _caller);
         vm.expectRevert(abi.encodeWithSelector(InvocationNotAllowed.selector, _caller));
-        holdingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+        holdingManager.invokeHolding(holding, callableContract, 0, abi.encodeWithSignature("decimals()"));
     }
 
     // Tests if invokeHolding works correctly when caller has GENERIC_CALLER_ROLE and has allowance for generic call
@@ -116,7 +116,8 @@ contract HoldingManagerTest is Test {
         );
 
         vm.prank(_caller, _caller);
-        (bool success,) = holdingManager.invokeHolding(holding, callableContract, abi.encodeWithSignature("decimals()"));
+        (bool success,) =
+            holdingManager.invokeHolding(holding, callableContract, 0, abi.encodeWithSignature("decimals()"));
 
         assertEq(success, true, "invokeHolding failed");
         assertEq(

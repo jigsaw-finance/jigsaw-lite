@@ -45,7 +45,7 @@ contract InvocationAllowanceInvariantTest is Test {
         targetContract(address(invocationHandler));
     }
 
-    function invariant_holdingManager_invocationAllowance_equals_tracked_invocationAllowance() public {
+    function invariant_holdingManager_invocationAllowance_equals_tracked_invocationAllowance() public view {
         assertEq(getAllowancesAmountInHoldingManager(), getAllowancesAmountInHandler(), "Allowances incorrect");
     }
 
@@ -102,7 +102,7 @@ contract InvocationHandler is CommonBase, StdCheats, StdUtils {
 
         vm.startPrank(GENERIC_CALLER, GENERIC_CALLER);
         holdingManager.invokeHolding(
-            holdingManager.getUserHolding(user), callableContract, abi.encodeWithSignature("decimals()")
+            holdingManager.getUserHolding(user), callableContract, 0, abi.encodeWithSignature("decimals()")
         );
         vm.stopPrank();
 

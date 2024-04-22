@@ -11,7 +11,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import { SampleTokenERC20 } from "../../utils/SampleTokenERC20.sol";
-import { Staker } from "../../../src/Staker.sol";
+import { StakerWrapper as Staker } from "../../utils/StakerWrapper.sol";
 
 import { IStaker } from "../../../src/interfaces/IStaker.sol";
 
@@ -71,7 +71,7 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
         uint256 withdrawAmount = bound(amount, 1, userBalance);
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
-        staker.withdraw(user, withdrawAmount);
+        staker.withdraw_wrapper(user, withdrawAmount);
 
         if (withdrawAmount == userBalance) investorsSet.remove(user);
         if (investorsSet.length() == 0) {
@@ -89,7 +89,7 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
         if (userRewards == 0) return;
 
         vm.prank(staker.stakingManager(), staker.stakingManager());
-        staker.claimRewards(user, user);
+        staker.claimRewards_wrapper(user, user);
 
         totalRewardsClaimed += userRewards;
     }
