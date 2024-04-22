@@ -170,9 +170,25 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
 
     /**
      * @notice Adds more rewards to the contract.
+     *
+     * @dev Prior approval is required for this contract to transfer rewards from `_from` address.
+     *
+     * @param _from address to transfer rewards from.
      * @param _amount The amount of new rewards.
      */
-    function addRewards(uint256 _amount) external onlyOwner validAmount(_amount) updateReward(address(0)) {
+    function addRewards(
+        address _from,
+        uint256 _amount
+    )
+        external
+        override
+        onlyOwner
+        validAmount(_amount)
+        updateReward(address(0))
+    {
+        // Transfer assets from the user's wallet to this contract.
+        IERC20(rewardToken).safeTransferFrom({ from: _from, to: address(this), value: _amount });
+
         uint256 duration = rewardsDuration;
         if (duration == 0) revert ZeroRewardsDuration();
         if (block.timestamp >= periodFinish) {

@@ -139,6 +139,15 @@ interface IStaker {
      * @notice accrued rewards per participant.
      */
     function rewards(address participant) external view returns (uint256);
+    /**
+     * @notice Adds more rewards to the contract.
+     *
+     * @dev Prior approval is required for this contract to transfer rewards from `_from` address.
+     *
+     * @param _from address to transfer rewards from.
+     * @param _amount The amount of new rewards.
+     */
+    function addRewards(address _from, uint256 _amount) external;
 
     /**
      * @dev Triggers stopped state.
