@@ -9,9 +9,9 @@ interface IHolding {
     error UnauthorizedCaller();
 
     /**
-     * @dev The operation failed because provided address is zero.
+     * @dev The operation failed because provided address is invalid.
      */
-    error ZeroAddress();
+    error InvalidAddress();
 
     // --- Events ---
     /**
@@ -50,6 +50,7 @@ interface IHolding {
      * aimed at mitigating potential risks associated with unauthorized calls.
      *
      * @param _contract The address of the target contract for the call.
+     * @param _value The amount of Ether to transfer in the call.
      * @param _call ABI-encoded data representing the call to be made.
      *
      * @return success A boolean indicating whether the call was successful or not.
@@ -57,6 +58,7 @@ interface IHolding {
      */
     function genericCall(
         address _contract,
+        uint256 _value,
         bytes calldata _call
     )
         external
