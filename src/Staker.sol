@@ -125,6 +125,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         _;
     }
 
+    // --- Constructor ---
+
     /**
      * @notice Constructor function for initializing the Staker contract.
      *
@@ -302,7 +304,6 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         uint256 _amount
     )
         internal
-        override
         whenNotPaused
         nonReentrant
         updateReward(_user)
@@ -320,7 +321,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      *  @param _user to claim rewards for.
      *  @param _to address to which rewards will be sent.
      */
-    function claimRewards(address _user, address _to) internal override nonReentrant updateReward(_user) {
+    function claimRewards(address _user, address _to) internal nonReentrant updateReward(_user) {
         uint256 reward = rewards[_user];
         if (reward == 0) revert NothingToClaim();
 

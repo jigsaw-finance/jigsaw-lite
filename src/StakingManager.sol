@@ -88,6 +88,8 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
         _;
     }
 
+    // --- Constructor ---
+
     /**
      * @dev Constructor function for initializing the StakerManager contract.
      *

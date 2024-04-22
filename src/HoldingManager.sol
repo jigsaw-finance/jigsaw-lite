@@ -63,6 +63,8 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
         _;
     }
 
+    // --- Constructor ---
+
     /**
      * @dev Constructor function for initializing the HoldingManager contract.
      * @param _admin Address of the initial admin who has the DEFAULT_ADMIN_ROLE.
