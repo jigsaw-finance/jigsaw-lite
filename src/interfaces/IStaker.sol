@@ -65,11 +65,6 @@ interface IStaker {
     // --- Events ---
 
     /**
-     * @notice event emitted when tokens, other than the staking one, are saved from the contract.
-     */
-    event SavedFunds(address indexed token, uint256 amount);
-
-    /**
      * @notice event emitted when rewards duration was updated.
      */
     event RewardsDurationUpdated(uint256 newDuration);
@@ -91,19 +86,19 @@ interface IStaker {
     event RewardPaid(address indexed user, uint256 reward);
 
     /**
-     * @notice returns staking token.
+     * @notice returns staking token address.
      */
     function tokenIn() external view returns (address);
+
+    /**
+     * @notice returns reward token address.
+     */
+    function rewardToken() external view returns (address);
 
     /**
      * @notice returns stakingManager address.
      */
     function stakingManager() external view returns (address);
-
-    /**
-     * @notice returns reward token.
-     */
-    function rewardToken() external view returns (address);
 
     /**
      * @notice when current contract distribution ends (block timestamp + rewards duration).
@@ -141,6 +136,21 @@ interface IStaker {
     function rewards(address participant) external view returns (uint256);
 
     /**
+     * @notice sets the new rewards duration.
+     */
+    function setRewardsDuration(uint256 _rewardsDuration) external;
+
+    /**
+     * @notice Adds more rewards to the contract.
+     *
+     * @dev Prior approval is required for this contract to transfer rewards from `_from` address.
+     *
+     * @param _from address to transfer rewards from.
+     * @param _amount The amount of new rewards.
+     */
+    function addRewards(address _from, uint256 _amount) external;
+
+    /**
      * @dev Triggers stopped state.
      *
      * Requirements:
@@ -157,16 +167,6 @@ interface IStaker {
      * - The contract must be paused.
      */
     function unpause() external;
-
-    /**
-     * @notice sets the new rewards duration.
-     */
-    function setRewardsDuration(uint256 _rewardsDuration) external;
-
-    /**
-     * @notice adds more rewards to the contract.
-     */
-    function addRewards(uint256 _amount) external;
 
     /**
      * @notice returns the total tokenIn supply.

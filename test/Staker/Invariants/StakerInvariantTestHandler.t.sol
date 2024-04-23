@@ -99,11 +99,13 @@ contract StakerInvariantTestHandler is CommonBase, StdCheats, StdUtils {
     function addRewards(uint256 _rewards) private {
         _rewards = bound(_rewards, 1e18, 10e18);
 
-        deal(rewardToken, address(staker), _rewards);
-        vm.prank(OWNER, OWNER);
-        staker.addRewards(_rewards);
+        vm.startPrank(OWNER, OWNER);
+        deal(rewardToken, OWNER, _rewards);
+        IERC20Metadata(rewardToken).approve(address(staker), _rewards);
+        staker.addRewards(OWNER, _rewards);
 
         totalRewardsAmount += _rewards;
+        vm.stopPrank();
     }
 
     // Utility functions
