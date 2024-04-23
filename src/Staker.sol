@@ -180,9 +180,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         if (rewardBalance == 0) revert NoRewardsToDistribute();
 
-        uint256 updatedTotalSupply = _totalSupply + _amount;
-        if (updatedTotalSupply > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
-
+        // Ensure that deposit operation will never surpass supply limit
+        if (_totalSupply + _amount > totalSupplyLimit) revert DepositSurpassesSupplyLimit(_amount, totalSupplyLimit);
         _totalSupply += _amount;
 
         _balances[_user] += _amount;
