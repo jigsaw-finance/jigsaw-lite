@@ -6,6 +6,7 @@ import "forge-std/console.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { HoldingManager } from "../../../src/HoldingManager.sol";
 import { StakingManager } from "../../../src/StakingManager.sol";
 import { JigsawPoints } from "../../../src/JigsawPoints.sol";
 
@@ -18,13 +19,16 @@ import { UnstakeHandler } from "./StakingManagerInvariantTestHandler_fork.t.sol"
 
 abstract contract Fixture is Test {
     IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
+
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
     address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     uint256 constant rewardsDuration = 365 days;
     address internal tokenIn;
+
     JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
+    HoldingManager internal holdingManager;
 
     address[] internal USER_ADDRESSES = [
         address(uint160(uint256(keccak256("user1")))),
@@ -43,9 +47,10 @@ abstract contract Fixture is Test {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 19_573_312);
 
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
-
+        holdingManager = new HoldingManager(ADMIN);
         stakingManager = new StakingManager({
-            _admin: ADMIN,
+            _initialOwner: ADMIN,
+            _holdingManager: address(holdingManager),
             _underlyingAsset: wstETH,
             _rewardToken: address(rewardToken),
             _ionPool: address(ION_POOL),
@@ -55,8 +60,12 @@ abstract contract Fixture is Test {
         staker = IStaker(stakingManager.staker());
 
         vm.startPrank(ADMIN, ADMIN);
-        deal(address(rewardToken), address(staker), 1e6 * 10e18);
-        staker.addRewards(1e6 * 10e18);
+        holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), address(stakingManager));
+
+        deal(staker.rewardToken(), ADMIN, 1e6 * 10e18);
+        IERC20(staker.rewardToken()).approve(address(staker), 1e6 * 10e18);
+        staker.addRewards(ADMIN, 1e6 * 10e18);
+
         vm.stopPrank();
 
         vm.startPrank(ION_POOL.owner());

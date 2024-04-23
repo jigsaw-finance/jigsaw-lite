@@ -5,41 +5,49 @@ import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
+import { Holding } from "../../src/Holding.sol";
 import { StakingManager } from "../../src/StakingManager.sol";
 import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 import { IIonPool } from "../utils/IIonPool.sol";
+import { IonPool } from "../utils/IonMockPool.sol";
 import { IStaker } from "../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../utils/IWhitelist.sol";
+import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 
-IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
-
-contract StakingManagerForkTest is Test {
+contract StakingManagerTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
-    error RenouncingDefaultAdminRoleProhibited();
+    error RenouncingOwnershipProhibited();
     error InvalidAddress();
 
     event Paused(address account);
     event Unpaused(address account);
     event LockupExpirationDateUpdated(uint256 indexed oldDate, uint256 indexed newDate);
-    event HoldingImplementationReferenceUpdated(address indexed _newReference);
 
     uint256 constant rewardsDuration = 365 days;
 
     address constant ADMIN = address(uint160(uint256(keccak256(bytes("ADMIN")))));
     address constant USER = address(uint160(uint256(keccak256(bytes("USER")))));
-    address constant wstETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+
+    bytes32 public constant GENERIC_CALLER_ROLE = keccak256("GENERIC_CALLER");
 
     JigsawPoints rewardToken;
     StakingManager internal stakingManager;
     IStaker internal staker;
+    IonPool internal ION_POOL;
+    address internal holdingReferenceImplementation;
+    address internal wstETH;
 
     function setUp() public {
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
+        wstETH = address(new SampleTokenERC20("wstETH", "wstETH", 0));
+        ION_POOL = new IonPool();
 
         stakingManager = new StakingManager({
-            _admin: ADMIN,
+            _initialOwner: ADMIN,
+            _holdingManager: address(uint160(uint256(keccak256(bytes("HOLDING MANAGER"))))),
             _underlyingAsset: wstETH,
             _rewardToken: address(rewardToken),
             _ionPool: address(ION_POOL),
@@ -48,9 +56,12 @@ contract StakingManagerForkTest is Test {
 
         staker = IStaker(stakingManager.staker());
 
+        holdingReferenceImplementation = address(new Holding());
+
         vm.startPrank(ADMIN, ADMIN);
-        deal(address(rewardToken), address(staker), 1e6 * 10e18);
-        staker.addRewards(1e6 * 10e18);
+        deal(staker.rewardToken(), ADMIN, 1e6 * 10e18);
+        IERC20(staker.rewardToken()).approve(address(staker), 1e6 * 10e18);
+        staker.addRewards(ADMIN, 1e6 * 10e18);
         vm.stopPrank();
     }
 
@@ -93,39 +104,11 @@ contract StakingManagerForkTest is Test {
         vm.stopPrank();
     }
 
-    // Tests if beginDefaultAdminTransfer reverts correctly when transferred to address(0)
-    function test_beginDefaultAdminTransfer_when_address0() public {
+    // Tests if renounceOwnership reverts correctly
+    function test_renounceOwnership_when() public {
         vm.prank(ADMIN, ADMIN);
-        vm.expectRevert(RenouncingDefaultAdminRoleProhibited.selector);
-        stakingManager.beginDefaultAdminTransfer(address(0));
-    }
-
-    // Tests if beginDefaultAdminTransfer reverts correctly when caller is unauthorized
-    function test_beginDefaultAdminTransfer_when_unauthorized(address _caller) public {
-        vm.assume(_caller != address(0));
-        vm.assume(_caller != ADMIN);
-
-        vm.prank(_caller, _caller);
-        vm.expectRevert(abi.encodeWithSelector(AccessControlUnauthorizedAccount.selector, _caller, 0x0));
-        stakingManager.beginDefaultAdminTransfer(address(1));
-    }
-
-    // Tests if renouncing ownership works correctly
-    function test_beginDefaultAdminTransfer_when_authorized() public {
-        address newAdmin = address(uint160(uint256(keccak256(bytes("NEW ADMIN")))));
-
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.beginDefaultAdminTransfer(newAdmin);
-
-        (address _newAdmin,) = stakingManager.pendingDefaultAdmin();
-        vm.assertEq(_newAdmin, newAdmin, "Incorrect pendingDefaultAdmin");
-
-        vm.warp(block.timestamp + stakingManager.defaultAdminDelay() + 1);
-
-        vm.prank(newAdmin, newAdmin);
-        stakingManager.acceptDefaultAdminTransfer();
-
-        vm.assertEq(stakingManager.defaultAdmin(), newAdmin, "Incorrect new admin");
+        vm.expectRevert(RenouncingOwnershipProhibited.selector);
+        stakingManager.renounceOwnership();
     }
 
     function test_setLockupExpirationDate_when_unauthorized(address _caller) public {
@@ -144,31 +127,5 @@ contract StakingManagerForkTest is Test {
         stakingManager.setLockupExpirationDate(newDate);
 
         assertEq(stakingManager.lockupExpirationDate(), newDate, "New lockupExpirationDate incorrect");
-    }
-
-    function test_setHoldingImplementationReference_when_unauthorized(address _caller) public {
-        vm.assume(_caller != ADMIN);
-        vm.prank(_caller, _caller);
-        vm.expectRevert();
-        stakingManager.setHoldingImplementationReference(address(1));
-    }
-
-    function test_setHoldingImplementationReference_when_invalidImplementationAddress() public {
-        vm.prank(ADMIN, ADMIN);
-        vm.expectRevert(InvalidAddress.selector);
-        stakingManager.setHoldingImplementationReference(address(0));
-    }
-
-    function test_setHoldingImplementationReference_when_authorized(address _newRef) public {
-        vm.assume(_newRef != address(0));
-
-        vm.expectEmit();
-        emit HoldingImplementationReferenceUpdated(_newRef);
-        vm.prank(ADMIN, ADMIN);
-        stakingManager.setHoldingImplementationReference(_newRef);
-
-        assertEq(
-            stakingManager.holdingImplementationReference(), _newRef, "New holdingImplementationReference incorrect"
-        );
     }
 }
