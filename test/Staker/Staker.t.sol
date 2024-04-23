@@ -8,6 +8,7 @@ import { IERC20Metadata, IERC20 } from "@openzeppelin/contracts/token/ERC20/exte
 
 import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 import { StakerWrapper as Staker } from "../utils/StakerWrapper.sol";
+import { JigsawPoints } from "../../src/JigsawPoints.sol";
 
 import { IStaker } from "../../src/interfaces/IStaker.sol";
 
@@ -56,7 +57,7 @@ contract StakerTest is Test {
         weth = new SampleTokenERC20("WETH", "WETH", 0);
 
         tokenIn = address(new SampleTokenERC20("TokenIn", "TI", 0));
-        rewardToken = address(new SampleTokenERC20("RewardToken", "RT", 0));
+        rewardToken = address(new JigsawPoints(OWNER, rewardsDuration * 0.01 ether));
 
         staker = new Staker({
             _initialOwner: OWNER,
@@ -636,5 +637,35 @@ contract StakerTest is Test {
     function test_renounceOwnership_staker() public {
         vm.expectRevert(RenouncingOwnershipProhibited.selector);
         staker.renounceOwnership();
+    }
+
+    function test_addRewards_withoutTransferingRewardTokens() public {
+        uint256 amount2add = rewardsDuration * 0.01 ether;
+
+        vm.prank(OWNER, OWNER);
+        bool approved = IERC20Metadata(rewardToken).approve(address(staker), type(uint256).max);
+        require(approved, "approval failed");
+
+        console.log("Add rewards by same amount");
+        vm.prank(OWNER, OWNER);
+        staker.addRewards(OWNER, amount2add);
+
+        uint256 initial_balance_ = IERC20Metadata(rewardToken).balanceOf(address(staker));
+        uint256 initial_rewardRate = staker.rewardRate();
+
+        console.log("6 months later...");
+        skip(365 days / 2);
+        assertEq(block.timestamp, 365 days / 2 + 1);
+
+        console.log("We add more rewards");
+        vm.prank(OWNER, OWNER);
+        staker.addRewards(OWNER, amount2add / 2);
+
+        uint256 final_rewardRate = staker.rewardRate();
+        uint256 balance_ = IERC20Metadata(rewardToken).balanceOf(address(staker));
+        assertEq(final_rewardRate, initial_rewardRate);
+        assertEq(staker.periodFinish(), 365 days * 1.5 + 1);
+        (staker.periodFinish(), 365 days * 1.5 + 1);
+        assertGt(balance_, initial_balance_, "Tokens never been added after addRewards");
     }
 }
