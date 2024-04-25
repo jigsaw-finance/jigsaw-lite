@@ -131,6 +131,76 @@ contract HoldingManagerTest is Test {
         );
     }
 
+    // Tests if invokeHolding works correctly when caller  is fully authorized, but the call fails
+    function test_invokeHolding_when_failedCall(address _caller, address _user, address _stakingManager) public {
+        vm.assume(_user != address(0));
+        vm.assume(_caller != address(0));
+
+        uint256 allowance = 1;
+        address callableContract = ERC20Mock;
+
+        vm.startPrank(ADMIN, ADMIN);
+        holdingManager.grantRole(holdingManager.GENERIC_CALLER_ROLE(), _caller);
+        holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), _stakingManager);
+        vm.stopPrank();
+
+        vm.prank(_stakingManager, _stakingManager);
+        address holding = holdingManager.createHolding(_user);
+
+        vm.prank(_user, _user);
+        holdingManager.setInvocationAllowance({
+            _genericCaller: _caller,
+            _callableContract: callableContract,
+            _invocationsAllowance: allowance
+        });
+
+        assertEq(
+            holdingManager.getInvocationAllowance({
+                _user: _user,
+                _genericCaller: _caller,
+                _callableContract: callableContract
+            }),
+            allowance,
+            "Allowance set incorrect"
+        );
+
+        {
+            vm.prank(_caller, _caller);
+            (bool success,) = holdingManager.invokeHolding(
+                holding, callableContract, 0, abi.encodeWithSignature("nonexistentFunction()")
+            );
+
+            assertEq(success, false, "invokeHolding should have failed");
+            assertEq(
+                holdingManager.getInvocationAllowance({
+                    _user: _user,
+                    _genericCaller: _caller,
+                    _callableContract: callableContract
+                }),
+                allowance,
+                "Allowance wrong after failed invocation"
+            );
+        }
+
+        // Ensure that generic caller can perform the call second time
+
+        {
+            vm.prank(_caller, _caller);
+            (bool success,) =
+                holdingManager.invokeHolding(holding, callableContract, 0, abi.encodeWithSignature("decimals()"));
+            assertEq(success, true, "invokeHolding failed");
+            assertEq(
+                holdingManager.getInvocationAllowance({
+                    _user: _user,
+                    _genericCaller: _caller,
+                    _callableContract: callableContract
+                }),
+                allowance - 1,
+                "Allowance wrong after second attempt for invocation"
+            );
+        }
+    }
+
     function test_setHoldingImplementationReference_when_unauthorized(address _caller) public {
         vm.assume(_caller != ADMIN);
         vm.prank(_caller, _caller);
