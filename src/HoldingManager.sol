@@ -198,10 +198,14 @@ contract HoldingManager is IHoldingManager, ReentrancyGuard, AccessControlDefaul
             revert InvocationNotAllowed(msg.sender);
         }
 
+        // Decrease allowance
+        holdingToCallerToContractAllowance[_holding][msg.sender][_contract]--;
+
         // Perform the generic call
         (success, result) = IHolding(_holding).genericCall({ _contract: _contract, _value: _value, _call: _call });
-        // Decrease generic caller's allowance by 1 only if call succeeded
-        if (success) holdingToCallerToContractAllowance[_holding][msg.sender][_contract]--;
+
+        // Revert if the call failed
+        if (!success) revert InvocationFailed(result);
     }
 
     /**
