@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { HoldingManager } from "../../src/HoldingManager.sol";
 
 import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
@@ -11,10 +13,13 @@ import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 contract HoldingManagerTest is Test {
     // -- Errors --
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
+    error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+
     error InvalidAddress();
     error InvocationNotAllowed(address caller);
     error RenouncingDefaultAdminRoleProhibited();
     error MissingHoldingContractForUser(address user);
+    error InvocationFailed(bytes data);
 
     // -- Events --
     event HoldingImplementationReferenceUpdated(address indexed _newReference);
@@ -166,10 +171,15 @@ contract HoldingManagerTest is Test {
 
         {
             vm.prank(_caller, _caller);
-            (bool success,) = holdingManager.invokeHolding(
-                holding, callableContract, 0, abi.encodeWithSignature("nonexistentFunction()")
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    InvocationFailed.selector,
+                    abi.encodeWithSelector(ERC20InsufficientBalance.selector, holding, 0, 100)
+                )
             );
-
+            (bool success,) = holdingManager.invokeHolding(
+                holding, callableContract, 0, abi.encodeCall(IERC20.transfer, (address(1), 100))
+            );
             assertEq(success, false, "invokeHolding should have failed");
             assertEq(
                 holdingManager.getInvocationAllowance({
@@ -185,9 +195,13 @@ contract HoldingManagerTest is Test {
         // Ensure that generic caller can perform the call second time
 
         {
+            deal(callableContract, holding, 100);
+
             vm.prank(_caller, _caller);
-            (bool success,) =
-                holdingManager.invokeHolding(holding, callableContract, 0, abi.encodeWithSignature("decimals()"));
+            (bool success,) = holdingManager.invokeHolding(
+                holding, callableContract, 0, abi.encodeCall(IERC20.transfer, (address(1), 100))
+            );
+
             assertEq(success, true, "invokeHolding failed");
             assertEq(
                 holdingManager.getInvocationAllowance({
