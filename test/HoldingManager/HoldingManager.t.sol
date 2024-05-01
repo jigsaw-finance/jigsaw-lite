@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { HoldingManager } from "../../src/HoldingManager.sol";
 
 import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
@@ -11,10 +13,13 @@ import { SampleTokenERC20 } from "../utils/SampleTokenERC20.sol";
 contract HoldingManagerTest is Test {
     // -- Errors --
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
+    error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+
     error InvalidAddress();
     error InvocationNotAllowed(address caller);
     error RenouncingDefaultAdminRoleProhibited();
     error MissingHoldingContractForUser(address user);
+    error InvocationFailed(bytes data);
 
     // -- Events --
     event HoldingImplementationReferenceUpdated(address indexed _newReference);
@@ -129,6 +134,85 @@ contract HoldingManagerTest is Test {
             allowance - 1,
             "Allowance wrong after invocation"
         );
+    }
+
+    // Tests if invokeHolding works correctly when caller  is fully authorized, but the call fails
+    function test_invokeHolding_when_failedCall(address _caller, address _user, address _stakingManager) public {
+        vm.assume(_user != address(0));
+        vm.assume(_caller != address(0));
+
+        uint256 allowance = 1;
+        address callableContract = ERC20Mock;
+
+        vm.startPrank(ADMIN, ADMIN);
+        holdingManager.grantRole(holdingManager.GENERIC_CALLER_ROLE(), _caller);
+        holdingManager.grantRole(holdingManager.STAKING_MANAGER_ROLE(), _stakingManager);
+        vm.stopPrank();
+
+        vm.prank(_stakingManager, _stakingManager);
+        address holding = holdingManager.createHolding(_user);
+
+        vm.prank(_user, _user);
+        holdingManager.setInvocationAllowance({
+            _genericCaller: _caller,
+            _callableContract: callableContract,
+            _invocationsAllowance: allowance
+        });
+
+        assertEq(
+            holdingManager.getInvocationAllowance({
+                _user: _user,
+                _genericCaller: _caller,
+                _callableContract: callableContract
+            }),
+            allowance,
+            "Allowance set incorrect"
+        );
+
+        {
+            vm.prank(_caller, _caller);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    InvocationFailed.selector,
+                    abi.encodeWithSelector(ERC20InsufficientBalance.selector, holding, 0, 100)
+                )
+            );
+            (bool success,) = holdingManager.invokeHolding(
+                holding, callableContract, 0, abi.encodeCall(IERC20.transfer, (address(1), 100))
+            );
+            assertEq(success, false, "invokeHolding should have failed");
+            assertEq(
+                holdingManager.getInvocationAllowance({
+                    _user: _user,
+                    _genericCaller: _caller,
+                    _callableContract: callableContract
+                }),
+                allowance,
+                "Allowance wrong after failed invocation"
+            );
+        }
+
+        // Ensure that generic caller can perform the call second time
+
+        {
+            deal(callableContract, holding, 100);
+
+            vm.prank(_caller, _caller);
+            (bool success,) = holdingManager.invokeHolding(
+                holding, callableContract, 0, abi.encodeCall(IERC20.transfer, (address(1), 100))
+            );
+
+            assertEq(success, true, "invokeHolding failed");
+            assertEq(
+                holdingManager.getInvocationAllowance({
+                    _user: _user,
+                    _genericCaller: _caller,
+                    _callableContract: callableContract
+                }),
+                allowance - 1,
+                "Allowance wrong after second attempt for invocation"
+            );
+        }
     }
 
     function test_setHoldingImplementationReference_when_unauthorized(address _caller) public {

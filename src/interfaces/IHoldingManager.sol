@@ -32,6 +32,12 @@ interface IHoldingManager {
      */
     error InvocationNotAllowed(address caller);
 
+    /**
+     * @dev The operation failed because the generic call failed.
+     * @param data returned by the failed call.
+     */
+    error InvocationFailed(bytes data);
+
     // --- Events ---
 
     /**
