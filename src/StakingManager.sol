@@ -19,7 +19,7 @@ import { IStaker } from "./interfaces/IStaker.sol";
  * @title StakingManager
  *
  * @notice Manages the distribution of rewards to early users of Jigsaw by facilitating staking of underlying assets.
- * @notice Staked assets are deposited into Ion Pool contracts to generate yield and earn jPoints, redeemable for
+ * @notice Staked assets are deposited into Ion's `Pool` Contract to generate yield and earn jPoints, redeemable for
  * governance $JIG tokens.
  * @notice For more information on Ion Protocol, visit https://ionprotocol.io.
  *
@@ -33,37 +33,36 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     using SafeERC20 for IERC20;
 
     /**
-     * @dev Address of the Holding Manager contract.
+     * @notice Address of the Holding Manager contract.
      * @dev The Holding Manager is responsible for creating and managing user Holdings.
      */
     IHoldingManager public immutable override holdingManager;
 
     /**
-     * @dev Address of the underlying asset used for staking.
+     * @notice Address of the underlying asset used for staking.
      */
     address public immutable override underlyingAsset;
 
     /**
-     * @dev Address of the reward token distributed for staking.
+     * @notice Address of the reward token distributed for staking.
      */
     address public immutable override rewardToken;
 
     /**
-     * @dev Address of the Ion Pool contract.
+     * @notice Address of the Ion Pool contract.
      */
     address public immutable override ionPool;
 
     /**
-     * @dev Address of the Staker contract used for jPoints distribution.
+     * @notice Address of the Staker contract used for jPoints distribution.
      */
     address public immutable override staker;
 
     /**
-     * @dev Represents the expiration date for the staking lockup period.
+     * @notice Represents the expiration date for the staking lockup period.
      * After this date, staked funds can be withdrawn.
-     * @notice If not withdrawn will continue to generate rewards in `underlyingAsset` and,
+     * @dev If not withdrawn will continue to generate rewards in `underlyingAsset` and,
      * if applicable, additional jPoints as long as staked.
-     *
      * @return The expiration date for the staking lockup period, in Unix timestamp format.
      */
     uint256 public override lockupExpirationDate;
@@ -71,7 +70,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     // --- Modifiers ---
 
     /**
-     * @dev Modifier to check if the provided amount is valid.
+     * @notice Modifier to check if the provided amount is valid.
      * @param _amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
@@ -80,7 +79,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     }
 
     /**
-     * @dev Modifier to check if the provided address is valid.
+     * @notice Modifier to check if the provided address is valid.
      * @param _address to be checked for validity.
      */
     modifier validAddress(address _address) {
@@ -91,13 +90,13 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     // --- Constructor ---
 
     /**
-     * @dev Constructor function for initializing the StakerManager contract.
+     * @notice Constructor function for initializing the StakerManager contract.
      *
      * @param _initialOwner Address of the initial owner.
      * @param _holdingManager Address of the holding manager contract.
      * @param _underlyingAsset Address of the underlying asset used for staking.
      * @param _rewardToken Address of the reward token.
-     * @param _ionPool Address of the IonPool contract.
+     * @param _ionPool Address of the IonPool Contract.
      * @param _rewardsDuration Duration of the rewards period.
      */
     constructor(
@@ -134,19 +133,19 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     /**
      * @notice Stakes a specified amount of assets for the msg.sender.
      * @dev Initiates the staking operation by transferring the specified `_amount` from the user's wallet to the
-     * contract, while simultaneously recording this deposit within the Jigsaw Staking Contract.
+     * contract, while simultaneously recording this deposit within the Jigsaw `Staker` Contract.
      *
-     * Requirements:
+     * @notice Requirements:
      * - The caller must have sufficient assets to stake.
-     * - The Ion Pool Contract's supply cap should not exceed its limit after the user's stake operation.
+     * - The Ion `Pool` Contract's supply cap should not exceed its limit after the user's stake operation.
      * - Prior approval is required for this contract to transfer assets on behalf of the user.
      *
-     * Effects:
+     * @notice Effects:
      * - If the user does not have an existing holding, a new holding is created for the user.
-     * - Supplies the specified amount of underlying asset to the Ion Pool to earn interest.
-     * - Tracks the deposit in the Staker contract to earn jPoints for staking.
+     * - Supplies the specified amount of underlying asset to the Ion's `Pool` Contract to earn interest.
+     * - Tracks the deposit in the `Staker` Contract to earn jPoints for staking.
      *
-     * Emits:
+     * @notice Emits:
      * - `Staked` event indicating the staking action.
      *
      * @param _amount of assets to stake.
@@ -156,7 +155,7 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
         address holding = holdingManager.getUserHolding(msg.sender);
         if (holding == address(0)) holding = holdingManager.createHolding(msg.sender);
 
-        // Emit an event indicating the staking action
+        // Emit an event indicating the staking action.
         emit Staked(msg.sender, _amount);
 
         // Transfer assets from the user's wallet to this contract.
@@ -172,14 +171,22 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
 
     /**
      * @notice Performs unstake operation.
-     *
      * @dev Initiates the withdrawal of staked assets by transferring all the deposited assets plus generated yield from
-     * the Ion Pool contract and earned jPoint rewards from Staker contract to the designated recipient `_to`.
+     * the Ion's `Pool` Contract and earned jPoint rewards from `Staker` Contract to the designated recipient `_to`.
      *
-     * Requirements:
+     * @notice Requirements:
      * - The `lockupExpirationDate` should have already expired.
      * - The caller must possess sufficient staked assets to fulfill the withdrawal.
      * - The `_to` address must be a valid Ethereum address.
+     *
+     * @notice Effects:
+     * - Unstakes deposited and accrued underlying assets from Ion's `Pool` Contract.
+     * - Withdraws jPoint rewards from `Staker` Contract.
+     * - Withdraws Ion rewards from `Holding` through `HoldingManager` Contract.
+     *
+     *
+     * @notice Emits:
+     * - `Unstaked` event indicating the unstaking action.
      *
      * @param _to address to receive the unstaked assets.
      */
@@ -204,14 +211,14 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     // --- Administration ---
 
     /**
-     * @dev Triggers stopped state.
+     * @notice Triggers stopped state.
      */
     function pause() external override onlyOwner whenNotPaused {
         _pause();
     }
 
     /**
-     * @dev Returns to normal state.
+     * @notice Returns to normal state.
      */
     function unpause() external override onlyOwner whenPaused {
         _unpause();
@@ -226,25 +233,33 @@ contract StakingManager is IStakingManager, Pausable, ReentrancyGuard, Ownable2S
     }
 
     /**
-     * @dev Allows the default admin role to set a new lockup expiration date.
+     * @notice Allows the default admin role to set a new lockup expiration date.
      *
-     * Requirements:
-     * - Caller must have the DEFAULT_ADMIN_ROLE.
+     * @notice Requirements:
+     * - Caller must be `Owner`.
+     * - `_newDate` should be different from `lockupExpirationDate`.
      *
-     * Emits:
+     * @notice Effects:
+     * - Sets `lockupExpirationDate` to `_newDate`.
+     *
+     *  @notice Emits:
      * - `LockupExpirationDateUpdated` event indicating that lockup expiration date has been updated.
      *
      * @param _newDate The new lockup expiration date to be set.
      */
     function setLockupExpirationDate(uint256 _newDate) external onlyOwner {
+        // Sanity check that the `_newDate` is different from `lockupExpirationDate`.
+        if (lockupExpirationDate == _newDate) revert SameValue();
+        // Emit event indicating that the lockup expiration date has been updated.
         emit LockupExpirationDateUpdated(lockupExpirationDate, _newDate);
+        // Update the state variable.
         lockupExpirationDate = _newDate;
     }
 
     // --- Getters ---
 
     /**
-     * @dev Get the address of the holding associated with the user.
+     * @notice Get the address of the holding associated with the user.
      * @param _user The address of the user.
      * @return the holding address.
      */
