@@ -5,26 +5,53 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+/**
+ * @title JigsawPoints
+ * @notice Implementation of the Jigsaw Points ERC20 token.
+ *
+ * @dev This contract inherits functionalities from  `ERC20`, `ERC20Burnable`, `AccessControlDefaultAdminRules`,
+ * and `ERC20Permit`.
+ *
+ * @author Hovooo (@hovooo)
+ *
+ * @custom:security-contact support@jigsaw.finance
+ */
 
 contract JigsawPoints is ERC20, ERC20Burnable, AccessControlDefaultAdminRules, ERC20Permit {
+    /**
+     * @notice Role allowed to perform `burnFrom` operation.
+     */
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+
     // --- Errors ---
     /**
-     * @dev The operation failed because renouncing default admin role is prohibited.
+     * @notice The operation failed because renouncing `DEFAULT_ADMIN_ROLE` is prohibited.
      */
     error RenouncingDefaultAdminRoleProhibited();
 
     /**
-     * @dev The operation failed because amount is zero;
+     * @notice The operation failed because amount is zero.
      */
     error InvalidAmount();
 
+    // -- Modifiers --
+
     /**
-     * Declaration of the Burner role - privileged actor, allowed to perform burnFrom operation.
+     * @notice Modifier to check that the amount is valid (non-zero).
+     * @param _val The amount to check.
      */
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    modifier validAmount(uint256 _val) {
+        if (_val == 0) revert InvalidAmount();
+        _;
+    }
 
     // -- Constructor --
 
+    /**
+     * @notice Constructor that initializes the contract with an `_initialAdmin` and `_premintAmount` amount.
+     * @param _initialAdmin address of the initial admin.
+     * @param _premintAmount amount of tokens to premint.
+     */
     constructor(
         address _initialAdmin,
         uint256 _premintAmount
@@ -38,19 +65,29 @@ contract JigsawPoints is ERC20, ERC20Burnable, AccessControlDefaultAdminRules, E
 
     // --- Administration ---
 
+    /**
+     * @notice Creates a `value` amount of tokens and assigns them to `to`, by transferring it from address(0). Relies
+     * on
+     * the `_update` mechanism.
+     *
+     * @dev Emits a `Transfer` event with `from` set to the zero address.
+     */
     function mint(address to, uint256 amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _mint(to, amount);
     }
 
-    /// @notice burns token from an address
-    /// @param _user the user to burn it from
-    /// @param _amount the amount of tokens to be burnt
+    /**
+     * @notice Burns token from an address.
+     * @param _user to burn tokens from.
+     * @param _amount of tokens to be burnt.
+     */
     function burnFrom(address _user, uint256 _amount) public override onlyRole(BURNER_ROLE) validAmount(_amount) {
         _burn(_user, _amount);
     }
 
     /**
-     * @dev Prevents the renouncement of the default admin role by overriding beginDefaultAdminTransfer
+     * @notice Prevents the renouncement of the default admin role by overriding `beginDefaultAdminTransfer`.
+     * @param newAdmin address.
      */
     function beginDefaultAdminTransfer(address newAdmin)
         public
@@ -59,12 +96,5 @@ contract JigsawPoints is ERC20, ERC20Burnable, AccessControlDefaultAdminRules, E
     {
         if (newAdmin == address(0)) revert RenouncingDefaultAdminRoleProhibited();
         _beginDefaultAdminTransfer(newAdmin);
-    }
-
-    // -- Modifiers --
-
-    modifier validAmount(uint256 _val) {
-        if (_val == 0) revert InvalidAmount();
-        _;
     }
 }
