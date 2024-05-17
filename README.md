@@ -70,9 +70,9 @@ Specific tests can be run using `forge test` conventions, specified in more deta
 
 ### Upcoming Release
 
-| Auditor | Report Link |
-| ------- | ----------- |
-| N/A     | N/A         |
+| Auditor | Report Link                                                        |
+| ------- | ------------------------------------------------------------------ |
+| Halborn | [Audit](https://www.halborn.com/audits/jigsaw-finance/jigsaw-lite) |
 
 ## About Jigsaw
 
