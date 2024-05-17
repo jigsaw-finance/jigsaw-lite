@@ -249,8 +249,8 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
      */
     function setRewardsDuration(uint256 _rewardsDuration) external override onlyOwner {
         if (block.timestamp <= periodFinish) revert PreviousPeriodNotFinished(block.timestamp, periodFinish);
-        rewardsDuration = _rewardsDuration;
         emit RewardsDurationUpdated(rewardsDuration, _rewardsDuration);
+        rewardsDuration = _rewardsDuration;
     }
 
     /**
