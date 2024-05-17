@@ -85,7 +85,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     // --- Modifiers ---
 
     /**
-     * @dev Modifier to update the reward for a specified account.
+     * @notice Modifier to update the reward for a specified account.
      * @param account The account for which the reward needs to be updated.
      */
     modifier updateReward(address account) {
@@ -99,7 +99,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Modifier to check if the provided address is valid.
+     * @notice Modifier to check if the provided address is valid.
      * @param _address to be checked for validity.
      */
     modifier validAddress(address _address) {
@@ -108,7 +108,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Modifier to check if the provided amount is valid.
+     * @notice Modifier to check if the provided amount is valid.
      * @param _amount to be checked for validity.
      */
     modifier validAmount(uint256 _amount) {
@@ -117,7 +117,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Modifier to restrict a function to be called only by the staking manager.
+     * @notice Modifier to restrict a function to be called only by the staking manager.
      * @notice Reverts the transaction if the caller is not the staking manager.
      */
     modifier onlyStakingManager() {
@@ -250,7 +250,7 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     function setRewardsDuration(uint256 _rewardsDuration) external override onlyOwner {
         if (block.timestamp <= periodFinish) revert PreviousPeriodNotFinished(block.timestamp, periodFinish);
         rewardsDuration = _rewardsDuration;
-        emit RewardsDurationUpdated(rewardsDuration);
+        emit RewardsDurationUpdated(rewardsDuration, _rewardsDuration);
     }
 
     /**
@@ -295,14 +295,14 @@ contract Staker is IStaker, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Triggers stopped state.
+     * @notice Triggers stopped state.
      */
     function pause() external override onlyOwner whenNotPaused {
         _pause();
     }
 
     /**
-     * @dev Returns to normal state.
+     * @notice Returns to normal state.
      */
     function unpause() external override onlyOwner whenPaused {
         _unpause();
