@@ -5,85 +5,100 @@ pragma solidity ^0.8.20;
 interface IStaker {
     // --- Errors ---
     /**
-     * @dev The operation failed because provided address is invalid.
+     * @notice The operation failed because provided address is invalid.
      */
     error InvalidAddress();
 
     /**
-     * @dev The operation failed because provided amount is invalid.
+     * @notice The operation failed because provided amount is invalid.
      */
     error InvalidAmount();
 
     /**
-     * @dev The operation failed because caller was unauthorized for the action.
+     * @notice The operation failed because caller was unauthorized for the action.
      */
     error UnauthorizedCaller();
 
     /**
-     * @dev The operation failed because previous rewards period must end first.
+     * @notice The operation failed because the previous rewards period must end first.
+     * @param timestamp The current timestamp when the error occurred.
+     * @param periodFinish The timestamp when the current rewards period is expected to end.
      */
     error PreviousPeriodNotFinished(uint256 timestamp, uint256 periodFinish);
 
     /**
-     * @dev The operation failed because rewards duration is zero.
+     * @notice The operation failed because rewards duration is zero.
      */
     error ZeroRewardsDuration();
 
     /**
-     * @dev The operation failed because reward rate was zero.
+     * @notice The operation failed because reward rate was zero.
      * Caused by an insufficient amount of rewards provided.
      */
     error RewardAmountTooSmall();
 
     /**
-     * @dev The operation failed because reward rate is too big.
+     * @notice The operation failed because reward rate is too big.
      */
     error RewardRateTooBig();
 
     /**
-     * @dev The operation failed because there were no rewards to distribute.
+     * @notice The operation failed because there were no rewards to distribute.
      */
     error NoRewardsToDistribute();
 
     /**
-     * @dev The operation failed because deposit surpasses the supply limit.
+     * @notice The operation failed because deposit surpasses the supply limit.
      * @param _amount of tokens attempting to be deposited.
      * @param supplyLimit allowed for deposits.
      */
     error DepositSurpassesSupplyLimit(uint256 _amount, uint256 supplyLimit);
 
     /**
-     * @dev The operation failed because user doesn't have rewards to claim.
+     * @notice The operation failed because user doesn't have rewards to claim.
      */
     error NothingToClaim();
 
     /**
-     * @dev The operation failed because renouncing ownership is prohibited.
+     * @notice The operation failed because renouncing ownership is prohibited.
      */
     error RenouncingOwnershipProhibited();
 
     // --- Events ---
 
     /**
-     * @notice event emitted when rewards duration was updated.
+     * @notice Event emitted when the rewards duration is updated.
+     * @param oldDuration The previous rewards duration.
+     * @param newDuration The new rewards duration.
      */
-    event RewardsDurationUpdated(uint256 newDuration);
+    event RewardsDurationUpdated(uint256 indexed oldDuration, uint256 indexed newDuration);
+
     /**
-     * @notice event emitted when rewards were added.
+     * @notice Event emitted when new rewards are added.
+     * @param reward The amount of rewards added.
      */
-    event RewardAdded(uint256 reward);
+    event RewardAdded(uint256 indexed reward);
+
     /**
-     * @notice event emitted when participant deposited.
+     * @notice Event emitted when a participant deposits an amount.
+     * @param user The address of the participant who made the deposit.
+     * @param amount The amount that was deposited.
      */
-    event Staked(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint256 indexed amount);
+
     /**
-     * @notice event emitted when participant claimed the investment.
+     * @notice Event emitted when a participant withdraws their stake.
+     * @param user The address of the participant who withdrew their stake.
+     * @param amount The amount that was withdrawn.
      */
-    event Withdrawn(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 indexed amount);
+
     /**
-     * @notice event emitted when participant claimed rewards.
+     * @notice Event emitted when a participant claims their rewards.
+     * @param user The address of the participant who claimed the rewards.
+     * @param reward The amount of rewards that were claimed.
      */
-    event RewardPaid(address indexed user, uint256 reward);
+    event RewardPaid(address indexed user, uint256 indexed reward);
 
     /**
      * @notice returns staking token address.
@@ -151,20 +166,12 @@ interface IStaker {
     function addRewards(address _from, uint256 _amount) external;
 
     /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
+     * @notice Triggers stopped state.
      */
     function pause() external;
 
     /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
+     * @notice Returns to normal state.
      */
     function unpause() external;
 
@@ -175,7 +182,7 @@ interface IStaker {
 
     /**
      * @notice returns total invested amount for an account.
-     *  @param _account participant address
+     * @param _account participant address
      */
     function balanceOf(address _account) external view returns (uint256);
 
@@ -213,8 +220,8 @@ interface IStaker {
      * @notice Withdraws specified `_amount` and claims rewards for the `_user`.
      * @dev This function enables the caller to exit the investment and claim their rewards.
      *
-     *  @param _user to withdraw and claim for.
-     *  @param _to address to which funds will be sent.
+     * @param _user to withdraw and claim for.
+     * @param _to address to which funds will be sent.
      */
     function exit(address _user, address _to) external;
 }

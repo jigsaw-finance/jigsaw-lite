@@ -29,13 +29,11 @@ contract StakerTest is Test {
     error ExpectedPause();
     error EnforcedPause();
 
-    event SavedFunds(address indexed token, uint256 amount);
-    event RewardsDurationUpdated(uint256 newDuration);
-    event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount);
-    event Withdrawn(address indexed user, uint256 amount);
-    event RewardPaid(address indexed user, uint256 reward);
-
+    event RewardsDurationUpdated(uint256 indexed oldDuration, uint256 indexed newDuration);
+    event RewardAdded(uint256 indexed reward);
+    event Staked(address indexed user, uint256 indexed amount);
+    event Withdrawn(address indexed user, uint256 indexed amount);
+    event RewardPaid(address indexed user, uint256 indexed reward);
     event Paused(address account);
     event Unpaused(address account);
 
@@ -187,7 +185,7 @@ contract StakerTest is Test {
         vm.warp(block.timestamp + staker.rewardsDuration() + 1);
         vm.startPrank(OWNER, OWNER);
         vm.expectEmit();
-        emit RewardsDurationUpdated(_amount);
+        emit RewardsDurationUpdated(staker.rewardsDuration(), _amount);
         staker.setRewardsDuration(_amount);
         vm.stopPrank();
 
@@ -405,9 +403,7 @@ contract StakerTest is Test {
         deal(staker.rewardToken(), address(staker), 1);
 
         vm.startPrank(staker.stakingManager(), staker.stakingManager());
-        vm.expectRevert(
-            abi.encodeWithSelector(DepositSurpassesSupplyLimit.selector, type(uint256).max, staker.totalSupplyLimit())
-        );
+        vm.expectRevert(abi.encodeWithSelector(DepositSurpassesSupplyLimit.selector, type(uint256).max, 1e34));
         staker.deposit(address(1), type(uint256).max);
         vm.stopPrank();
     }

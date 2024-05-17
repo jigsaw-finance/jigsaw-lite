@@ -21,6 +21,7 @@ contract StakingManagerTest is Test {
     error AccessControlUnauthorizedAccount(address account, bytes32 neededRole);
     error RenouncingOwnershipProhibited();
     error InvalidAddress();
+    error SameValue();
 
     event Paused(address account);
     event Unpaused(address account);
@@ -111,6 +112,7 @@ contract StakingManagerTest is Test {
         stakingManager.renounceOwnership();
     }
 
+    // Tests if setLockupExpirationDate reverts correctly when caller is unauthorized
     function test_setLockupExpirationDate_when_unauthorized(address _caller) public {
         vm.assume(_caller != ADMIN);
         vm.prank(_caller, _caller);
@@ -118,8 +120,19 @@ contract StakingManagerTest is Test {
         stakingManager.setLockupExpirationDate(block.timestamp);
     }
 
+    // Tests if setLockupExpirationDate reverts correctly when same value
+    function test_setLockupExpirationDate_when_sameValue() public {
+        uint256 oldDate = stakingManager.lockupExpirationDate();
+
+        vm.expectRevert(SameValue.selector);
+        vm.prank(ADMIN, ADMIN);
+        stakingManager.setLockupExpirationDate(oldDate);
+    }
+
+    // Tests if setLockupExpirationDate works correctly
     function test_setLockupExpirationDate_when_authorized(uint256 _days) public {
         uint256 newDate = block.timestamp + bound(_days, 1 days, 365 days);
+        vm.assume(newDate != stakingManager.lockupExpirationDate());
 
         vm.expectEmit();
         emit LockupExpirationDateUpdated(stakingManager.lockupExpirationDate(), newDate);

@@ -16,15 +16,20 @@ contract HoldingManagerTest is Test {
     error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
 
     error InvalidAddress();
+    error SameAddress();
     error InvocationNotAllowed(address caller);
     error RenouncingDefaultAdminRoleProhibited();
     error MissingHoldingContractForUser(address user);
     error InvocationFailed(bytes data);
 
     // -- Events --
-    event HoldingImplementationReferenceUpdated(address indexed _newReference);
+    event HoldingImplementationReferenceUpdated(address indexed oldReference, address indexed newReference);
     event InvocationAllowanceSet(
-        address holding, address genericCaller, address callableContract, uint256 invocationsAllowance
+        address indexed holding,
+        address indexed genericCaller,
+        address indexed callableContract,
+        uint256 oldAllowance,
+        uint256 newAllowance
     );
 
     HoldingManager internal holdingManager;
@@ -102,7 +107,7 @@ contract HoldingManagerTest is Test {
         address holding = holdingManager.createHolding(_user);
 
         vm.expectEmit();
-        emit InvocationAllowanceSet(holding, _caller, callableContract, allowance);
+        emit InvocationAllowanceSet(holding, _caller, callableContract, 0, allowance);
         vm.prank(_user, _user);
         holdingManager.setInvocationAllowance({
             _genericCaller: _caller,
@@ -226,13 +231,20 @@ contract HoldingManagerTest is Test {
         vm.prank(ADMIN, ADMIN);
         vm.expectRevert(InvalidAddress.selector);
         holdingManager.setHoldingImplementationReference(address(0));
+
+        address old = holdingManager.holdingImplementationReference();
+
+        vm.prank(ADMIN, ADMIN);
+        vm.expectRevert(SameAddress.selector);
+        holdingManager.setHoldingImplementationReference(old);
     }
 
     function test_setHoldingImplementationReference_when_authorized(address _newRef) public {
         vm.assume(_newRef != address(0));
+        vm.assume(_newRef != holdingManager.holdingImplementationReference());
 
         vm.expectEmit();
-        emit HoldingImplementationReferenceUpdated(_newRef);
+        emit HoldingImplementationReferenceUpdated(holdingManager.holdingImplementationReference(), _newRef);
         vm.prank(ADMIN, ADMIN);
         holdingManager.setHoldingImplementationReference(_newRef);
 
