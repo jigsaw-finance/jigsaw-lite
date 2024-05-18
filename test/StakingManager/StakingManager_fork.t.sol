@@ -15,6 +15,7 @@ import { IStaker } from "../../src/interfaces/IStaker.sol";
 import { IWhitelist } from "../utils/IWhitelist.sol";
 
 IIonPool constant ION_POOL = IIonPool(0x0000000000eaEbd95dAfcA37A39fd09745739b78);
+IWhitelist constant ION_WHITELIST = IWhitelist(0x7E317f99aA313669AaCDd8dB3927ff3aCB562dAD);
 
 contract StakingManagerForkTest is Test {
     error PreLockupPeriodUnstaking();
@@ -59,7 +60,7 @@ contract StakingManagerForkTest is Test {
         vm.startPrank(ION_POOL.owner());
         ION_POOL.updateIlkDebtCeiling(0, type(uint256).max);
         ION_POOL.updateSupplyCap(type(uint256).max);
-        IWhitelist(ION_POOL.whitelist()).approveProtocolWhitelist(address(stakingManager));
+        ION_WHITELIST.approveProtocolWhitelist(address(stakingManager));
         vm.stopPrank();
     }
 
