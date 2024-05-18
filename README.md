@@ -2,10 +2,10 @@
 
 <p align="center">
   <img src="https://github.com/jigsaw-finance/jigsaw-lite/assets/102415071/894b1ec7-dcbd-4b2d-ac5d-0a9d0df26313" alt="jigsaw 2"><br>
-  <a href="https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml">
-    <img src="https://github.com/groksmith/jigsaw-lite/actions/workflows/test.yml/badge.svg" alt="test">
+  <a href="https://github.com/jigsaw-finance/jigsaw-lite/actions/workflows/test.yml">
+    <img src="https://github.com/jigsaw-finance/jigsaw-lite/actions/workflows/test.yml/badge.svg" alt="test">
   </a>
-  <a href="https://github.com/groksmith/jigsaw-lite/blob/main/LICENSE">
+  <a href="https://github.com/jigsaw-finance/jigsaw-lite/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
   </a>
   <img src="https://img.shields.io/github/commit-activity/m/statping/statping.svg" alt="GitHub commit activity">
