@@ -44,7 +44,7 @@ contract StakingManagerTest is Test {
     function setUp() public {
         rewardToken = new JigsawPoints({ _initialAdmin: ADMIN, _premintAmount: 100 });
         wstETH = address(new SampleTokenERC20("wstETH", "wstETH", 0));
-        ION_POOL = new IonPool();
+        ION_POOL = new IonPool(wstETH);
 
         stakingManager = new StakingManager({
             _initialOwner: ADMIN,
