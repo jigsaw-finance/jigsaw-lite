@@ -1,2 +1,10 @@
 {
+  "SEPOLIA": {
+    "ionPool": "0xAEACDCA87FD3A128fd579C7F197c40EBA104810e",
+    "underlyingAsset": "0xC07ADbF36eF8267e3ED4F73Dc2EA47B5dbd8B11E",
+    "jPointsAddress": "0xDABDFedF26bD69a7Ac517E45Eea453B6D9e94443",
+    "holdingManager": "0xFAE97ef784388FC97df4A082dA045986E3182Eb4",
+    "holdingImplementation": "0x09C08e70bFc57eE02d8876Ad82112fa39B065e37",
+    "stakingManagerAddress": "0x99606E2Bb31D17271A98e97C5A32471248cF952c"
+  }
 }
