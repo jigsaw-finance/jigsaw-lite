@@ -1,9 +1,9 @@
 {
-  "initialDefaultAdmin": "",
-  "holdingManager": "",
-  "underlyingAsset": "",
-  "jPointsAddress": "",
-  "ionPool": "",
-  "rewardsDuration": "",
-  "stakingManager_address": ""
+  "initialDefaultAdmin": "0xf5a1Dc8f36ce7cf89a82BBd817F74EC56e7fDCd8",
+  "holdingManager": "0xFAE97ef784388FC97df4A082dA045986E3182Eb4",
+  "underlyingAsset": "0xC07ADbF36eF8267e3ED4F73Dc2EA47B5dbd8B11E",
+  "jPointsAddress": "0xDABDFedF26bD69a7Ac517E45Eea453B6D9e94443",
+  "ionPool": "0xAEACDCA87FD3A128fd579C7F197c40EBA104810e",
+  "rewardsDuration": "108000",
+  "stakingManager_address": "0x99606E2Bb31D17271A98e97C5A32471248cF952c"
 }
