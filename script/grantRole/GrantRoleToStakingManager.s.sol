@@ -11,7 +11,7 @@ contract GrantRoleToStakingManager is Script {
     address HOLDING_MANAGER =
         vm.readFile("./deployment-config/StakingManagerConfig.json").readAddress(".holdingManager");
     address STAKING_MANAGER =
-        vm.readFile("./deployment-config/StakingManagerConfig.json").readAddress(".holdingManager");
+        vm.readFile("./deployment-config/StakingManagerConfig.json").readAddress(".stakingManager_address");
 
     function run() external {
         vm.startBroadcast(vm.envUint("HOLDING_MANAGER_ADMIN_PRIVATE_KEY"));
