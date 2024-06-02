@@ -1,2 +1,7 @@
 {
+  "MAINNET": {
+    "jPointsAddress": "0x401Ea2886D8C9e75EA5a47684d3F96082674fe4f",
+    "holdingManager": "0xAeB2204ac5042A6Bd68d4f6498B263bbfa03F349",
+    "stakingManagerAddress": "0x0bED6f2fCb52ae6cD00988Ab9e27609207a6cFe4"
+  }
 }
