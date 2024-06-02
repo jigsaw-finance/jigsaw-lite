@@ -10,6 +10,7 @@ interface IIonPool {
     function updateIlkDebtCeiling(uint8 ilkIndex, uint256 newCeiling) external;
     function balanceOf(address user) external view returns (uint256);
     function normalizedBalanceOf(address user) external returns (uint256);
+    function normalizedTotalSupply() external view returns (uint256);
     function totalSupply() external view returns (uint256);
     function debt() external view returns (uint256);
     function getIlkAddress(uint256 ilkIndex) external view returns (address);
