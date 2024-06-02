@@ -122,7 +122,6 @@ deploy-all:
 	just deploy-jPoints
 	just deploy-holdingManager
 	just deploy-stakingManager
-	just grant-stakingManagerRole
 	
 # Deploy Jigsaw Points Contract
 # Deploys using $CHAIN, $CHAIN_ID and ETHERSCAN set in .env
