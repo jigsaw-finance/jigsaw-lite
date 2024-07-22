@@ -20,7 +20,7 @@ abstract contract ValidateInterface {
     function _validateInterface(IIonPool ionPool) internal view {
         require(address(ionPool).code.length > 0, "ionPool address must have code");
         ionPool.balanceOf(address(this));
-        ionPool.debt();
+        ionPool.supplyFactorUnaccrued();
         ionPool.getIlkAddress(0);
     }
 

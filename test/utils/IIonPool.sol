@@ -12,5 +12,6 @@ interface IIonPool {
     function normalizedBalanceOf(address user) external returns (uint256);
     function totalSupply() external view returns (uint256);
     function debt() external view returns (uint256);
+    function supplyFactorUnaccrued() external view returns (uint256);
     function getIlkAddress(uint256 ilkIndex) external view returns (address);
 }
