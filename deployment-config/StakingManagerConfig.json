@@ -3,7 +3,7 @@
   "holdingManager": "0xAeB2204ac5042A6Bd68d4f6498B263bbfa03F349",
   "underlyingAsset": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
   "jPointsAddress": "0x401Ea2886D8C9e75EA5a47684d3F96082674fe4f",
-  "ionPool": "0x23fd89fDA78Ec3Cc436351599A7b12D48fE8FBcE",
-  "rewardsDuration": "",
-  "stakingManager_address": ""
+  "ionPool": "0x00000000008a3A77bd91bC738Ed2Efaa262c3763",
+  "rewardsDuration": "6480000",
+  "stakingManager_address": "0xE6007c3ee8b743724172538205b9C4E92e0c0f52"
 }
